@@ -5,9 +5,6 @@ import json
 import shutil
 import pickle
 
-
-
-
 from ase import Atoms
 from ase.build import bulk
 from itertools import chain
@@ -64,111 +61,109 @@ class dft_job_array():
     def __init__(self):
         self.RUN_STARTED = False
         
-        self.CONV=-1.60218E2
+        self.CONV = -1.60218E2
 
-        
-    def from_arrays_starter(self,szs,prs,ics,pyiron_proj_name,**kwargs):
-        self.szs_ARR=szs
-        self.prs_ARR=prs
-        self.ics_ARR=ics
-        self.DFT_dir_PA=pyiron_proj_name
+    def from_arrays_starter(self, szs, prs, ics, pyiron_proj_name, **kwargs):
+        self.szs_ARR = szs
+        self.prs_ARR = prs
+        self.ics_ARR = ics
+        self.DFT_dir_PA = pyiron_proj_name
         if 'own_incars' in kwargs:
             self.own_incars = kwargs['own_incars']
-            self.OWN_INCARS =True
+            self.OWN_INCARS = True
         else:
-            self.OWN_INCARS =False
+            self.OWN_INCARS = False
         
-        self.RUN_indices=np.zeros(self.szs_ARR.shape[1],dtype=int)
+        self.RUN_indices = np.zeros(self.szs_ARR.shape[1], dtype=int)
         
-        self.statuses=np.empty(self.szs_ARR.shape,dtype=object)
+        self.statuses = np.empty(self.szs_ARR.shape, dtype=object)
         
-        self.open_cores=['open']*self.szs_ARR.shape[1]
-        self.cross_ref=np.empty(self.szs_ARR.shape[1],dtype=object)
+        self.open_cores = ['open']*self.szs_ARR.shape[1]
+        self.cross_ref = np.empty(self.szs_ARR.shape[1], dtype=object)
         
         print(self.open_cores)
-        self.indeces_RUN=np.arange(self.szs_ARR.shape[1])
+        self.indeces_RUN = np.arange(self.szs_ARR.shape[1])
         print(self.indeces_RUN)
         
-        
-        self.NUM_cores=self.szs_ARR.shape[1]
+        self.NUM_cores = self.szs_ARR.shape[1]
         
         print(self.prs_ARR)
         self.job_crrnt = self.NUM_cores
         
-        self.dft_JOBS = np.empty(self.szs_ARR.shape,dtype=object)
+        self.dft_JOBS = np.empty(self.szs_ARR.shape, dtype=object)
         
         print(self.dft_JOBS)
         
-        self.running_PLOT=np.ones((self.NUM_cores,2))*-0.5
+        self.running_PLOT = np.ones((self.NUM_cores, 2))*-0.5
         
-        self.FINI_grid  = []
-        self.ABOR_grid  = []
-        self.NOTC_grid  = []
-        self.WARN_grid  = []
+        self.FINI_grid = []
+        self.ABOR_grid = []
+        self.NOTC_grid = []
+        self.WARN_grid = []
         self.FINI_color = []
         self.ABOR_color = []
         self.NOTC_color = []
         self.WARN_color = []
 
-    
-    def start_specific(self,job_ind,DEL_EXJ=True,custom_relaxer=None):
-        jobs=[0]*self.szs_ARR.shape[1]
+    def start_specific(self, job_ind, DEL_EXJ=True, custom_relaxer=None):
+        jobs = [0]*self.szs_ARR.shape[1]
         proj_pyiron = Project(path=self.DFT_dir_PA)
         
-    
         for i in range(self.NUM_cores):
             if self.open_cores[i] == 'open':
                 
                 self.cross_ref[i] = job_ind
                 
-                if job_ind[0]>=self.szs_ARR.shape[0]:
+                if job_ind[0] >= self.szs_ARR.shape[0]:
                     print('OUT of scope')
-                    self.open_cores[i]='open'
+                    self.open_cores[i] = 'open'
                     return
-                if self.szs_ARR[job_ind[0],job_ind[1]]<=1E-12:
+                if self.szs_ARR[job_ind[0], job_ind[1]] <= 1E-12:
                     print('OUT of scope')
-                    self.open_cores[i]='open'
+                    self.open_cores[i] = 'open'
                     return
 
-                print(job_ind,'relax_{:000006}_VASP'.format(self.prs_ARR[job_ind[0]][job_ind[1]]))
+                print(job_ind, 'relax_{:000006}_VASP'.format(
+                    self.prs_ARR[job_ind[0]][job_ind[1]]))
 
                 try:
-                    jobs[i]=proj_pyiron.create_job(job_type=proj_pyiron.job_type.Vasp,
-                                          job_name='relax_{:000006}_VASP'.format(self.prs_ARR[job_ind[0]][job_ind[1]]),
-                                      delete_existing_job=DEL_EXJ)
+                    jobs[i] = proj_pyiron.create_job(
+                        job_type=proj_pyiron.job_type.Vasp,
+                        job_name='relax_{:000006}_VASP'.format(
+                            self.prs_ARR[job_ind[0]][job_ind[1]]),
+                        delete_existing_job=DEL_EXJ
+                        )
 
-                except:
-                    jobs[i]=proj_pyiron.load('relax_{:000006}_VASP'.format(self.prs_ARR[job_ind[0]][job_ind[1]]))
-
-
-
+                except Exception as e:
+                    print(e)
+                    jobs[i] = proj_pyiron.load('relax_{:000006}_VASP'.format(
+                        self.prs_ARR[job_ind[0]][job_ind[1]]))
 
                 print(jobs[i].status)
 
-                if jobs[i].status=='initialized':
-                    jobs[i].structure = ase_to_pyiron(self.ics_ARR[job_ind[0]][job_ind[1]].copy())
-                    if custom_relaxer == None:
+                if jobs[i].status == 'initialized':
+                    jobs[i].structure = ase_to_pyiron(
+                        self.ics_ARR[job_ind[0]][job_ind[1]].copy())
+                    if custom_relaxer is None:
                         self.relax_isif3(jobs[i])
                     else:
                         custom_relaxer(jobs[i])
 
                     sleep(3+3*np.random.random())
 
-                    [self.ABOR_grid,self.ABOR_color]=delete_entry(job_ind[::-1],self.ABOR_grid,self.ABOR_color)
-                    self.running_PLOT[i]=np.array([job_ind[1],job_ind[0]])
+                    [self.ABOR_grid, self.ABOR_color] = delete_entry(
+                        job_ind[::-1], self.ABOR_grid, self.ABOR_color)
+                    self.running_PLOT[i] = np.array([job_ind[1], job_ind[0]])
                     
                     print(self.running_PLOT)
 
-
-                    self.open_cores[i]='in use'
-                    self.statuses[job_ind[0],job_ind[1]]='in rerun'
+                    self.open_cores[i] = 'in use'
+                    self.statuses[job_ind[0], job_ind[1]] = 'in rerun'
                    
                 break
     
-    
     def plot_progress(self):
         print(self.szs_ARR)
-        #cmap = colors.ListedColormap(['#0000FFFF','#00FF00FF','#FF0000FF','#FFFF00FF','#A32CC4FF','#89D5D2FF'])
         cmap = colors.ListedColormap(['red','blue','green','yellow','purple','teal'])
         if 0 in np.array(self.szs_ARR):
             cmap = colors.ListedColormap(['gray','red','blue','green','yellow','purple','teal'])
@@ -182,10 +177,12 @@ class dft_job_array():
                         color='white',edgecolor='red', s=50)
             if len(self.FINI_grid) > 0:
                 dones=np.array(self.FINI_grid)
-                plt.scatter(dones[:,0]+0.5,dones[:,1]+0.5, marker='o', color=self.FINI_color, edgecolor='white', s=70)
+                plt.scatter(dones[:,0]+0.5,dones[:,1]+0.5, marker='o', 
+                            color=self.FINI_color, edgecolor='white', s=70)
             if len(self.WARN_grid) > 0:
                 warns=np.array(self.WARN_grid)
-                plt.scatter(warns[:,0]+0.5,warns[:,1]+0.5, marker='^', color=self.WARN_color, edgecolor='white',s=70)
+                plt.scatter(warns[:, 0]+0.5, warns[:, 1]+0.5, marker='^', 
+                            color=self.WARN_color, edgecolor='white',s=70)
             if len(self.NOTC_grid) > 0:
                 notcs=np.array(self.NOTC_grid)
                 plt.scatter(notcs[:,0]+0.5,notcs[:,1]+0.5, marker='v', color=self.NOTC_color, edgecolor='white',s=70)
@@ -213,77 +210,73 @@ class dft_job_array():
                     
                     all_stss_vasp.append(jj['stresses']*self.CONV)
                     
-                    self.index_data[i][j]= np.arange(self.no_ionic_steps, self.no_ionic_steps +len(jj['trajectories']), 1)
+                    self.index_data[i][j] = \
+                        np.arange(self.no_ionic_steps,
+                                  self.no_ionic_steps + 
+                                  len(jj['trajectories']), 1)
                     
-                    self.no_ionic_steps = self.no_ionic_steps +len(jj['trajectories'])
+                    self.no_ionic_steps = self.no_ionic_steps + len(
+                        jj['trajectories'])
 
-                    
-                    
-                    
-                    
+        self.ALL_ENER = all_ener
+        self.ALL_FORC = all_forces
+        self.ALL_TRAJ = all_traj
+        self.ALL_STSS = all_stss
         
-        self.ALL_ENER=all_ener
-        self.ALL_FORC=all_forces
-        self.ALL_TRAJ=all_traj
-        self.ALL_STSS=all_stss
+        self.ALL_STSS_VASP = all_stss_vasp
         
-        self.ALL_STSS_VASP=all_stss_vasp
-        
-        return self.ALL_TRAJ,self.ALL_ENER,self.ALL_FORC,self.ALL_STSS_VASP
-    
+        return self.ALL_TRAJ, self.ALL_ENER, self.ALL_FORC, self.ALL_STSS_VASP
     
     def retrieve_data(self):
         self.prepare_data()
-        a_e=np.concatenate(self.ALL_ENER)
-        a_f=np.array(list(chain.from_iterable(self.ALL_FORC)),dtype=object)
-        a_s=np.array(list(chain.from_iterable(self.ALL_STSS_VASP)),dtype=object)
-        a_t=np.array(list(chain.from_iterable(self.ALL_TRAJ)),dtype=object)
-        return a_t,a_e,a_f,a_s
+        a_e = np.concatenate(self.ALL_ENER)
+        a_f = np.array(list(chain.from_iterable(self.ALL_FORC)), dtype=object)
+        a_s = np.array(list(chain.from_iterable(self.ALL_STSS_VASP)), 
+                       dtype=object)
+        a_t = np.array(list(chain.from_iterable(self.ALL_TRAJ)), dtype=object)
+        return a_t, a_e, a_f, a_s
     
-    
-    def break_data(self, frac_parameter, random_bool=True, by_trajectories=True):
-        tr_i=np.empty((0,),dtype=int)
-        te_i=np.empty((0,),dtype=int)
-        
-        
-        
-        
+    def break_data(self, frac_parameter, random_bool=True, 
+                   by_trajectories=True):
+        tr_i = np.empty((0,), dtype=int)
+        te_i = np.empty((0,), dtype=int)
         
         if by_trajectories:
-            for i,ii in enumerate(self.dft_JOBS):
-                for j,jj in enumerate(ii):
+            for i, ii in enumerate(self.dft_JOBS):
+                for j, jj in enumerate(ii):
                     if (jj is not None) and (jj != "error"):
                         if random_bool:
-                            train_index, test_index, _,_= train_test_split(self.index_data[i][j], self.index_data[i][j], 
-                                                                                train_size=frac_parameter, 
-                                                                     random_state=42)
+                            train_index, test_index, _, _ = train_test_split(
+                                self.index_data[i][j], self.index_data[i][j], 
+                                train_size=frac_parameter, 
+                                random_state=42)
                         else:
-                            train_index, test_index, _,_= train_test_split(self.index_data[i][j], self.index_data[i][j], 
-                                                                                train_size=frac_parameter,
-                                                                     shuffle=False)
+                            train_index, test_index, _, _ = train_test_split(
+                                self.index_data[i][j], self.index_data[i][j],
+                                train_size=frac_parameter,
+                                shuffle=False)
 
                         tr_i = np.append(tr_i, train_index.astype(int))
                         te_i = np.append(te_i, test_index.astype(int))
             return tr_i, te_i
         else:
-            tr_i, te_i, _,_= train_test_split(np.arange(0,self.no_ionic_steps,1),
-                                                           np.arange(0,self.no_ionic_steps,1), 
-                                                                    train_size=frac_parameter, 
-                                                                     random_state=42)
+            tr_i, te_i, _, _ = train_test_split(
+                np.arange(0, self.no_ionic_steps, 1),
+                np.arange(0, self.no_ionic_steps, 1), 
+                train_size=frac_parameter, random_state=42)
             return tr_i, te_i
 
-
-
     def print_cut(self):
-        print('#######################################################################\n')
-    def pre_steps(self,**kwargs):
+        print('############################################################\n')
+
+    def pre_steps(self, **kwargs):
         if 'strain_test' in kwargs.keys():
-            self.strains_test=kwargs['strain_test']
+            self.strains_test = kwargs['strain_test']
             
         if 'elastic' in kwargs.keys():
-            self.elastic=kwargs['elastic']
+            self.elastic = kwargs['elastic']
         else:
-            self.elastic=False
+            self.elastic = False
             
         if 'input_dict' in kwargs.keys():
             self.input_dict=kwargs['input_dict']
@@ -692,11 +685,11 @@ class dft_job_array():
                             self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass ABOR')
 
                         except Exception as e:
-#                             self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
+                            # self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
 
-#                             if [job_ind[1],job_ind[0]] not in self.ABOR_grid:
-#                                 self.ABOR_grid.append([job_ind[1],job_ind[0]])
-#                                 self.ABOR_color.append('red')
+                            # if [job_ind[1],job_ind[0]] not in self.ABOR_grid:
+                            #     self.ABOR_grid.append([job_ind[1],job_ind[0]])
+                            #     self.ABOR_color.append('red')
 
                             print('error ABOR: ', e)
                             self.print_cut()
