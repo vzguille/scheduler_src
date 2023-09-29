@@ -43,7 +43,6 @@ ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
 pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 
-
 from ase.spacegroup import get_spacegroup
 
 from pymatgen.analysis.magnetism import CollinearMagneticStructureAnalyzer
@@ -164,34 +163,38 @@ class dft_job_array():
     
     def plot_progress(self):
         print(self.szs_ARR)
-        cmap = colors.ListedColormap(['red','blue','green','yellow','purple','teal'])
+        cmap = colors.ListedColormap(['red', 'blue', 'green', 'yellow', 
+                                      'purple', 'teal'])
         if 0 in np.array(self.szs_ARR):
-            cmap = colors.ListedColormap(['gray','red','blue','green','yellow','purple','teal'])
-        plt.figure(figsize=(self.szs_ARR.shape[1]/3,self.szs_ARR.shape[0]/3))
-        #plt.figure()
-        plt.pcolor(self.szs_ARR,cmap=cmap,edgecolors='k', linewidths=3)
-        
+            cmap = colors.ListedColormap(['gray', 'red', 'blue', 'green', 
+                                          'yellow', 'purple', 'teal'])
+        plt.figure(figsize=(self.szs_ARR.shape[1]/3, self.szs_ARR.shape[0]/3))
+        plt.pcolor(self.szs_ARR, cmap=cmap, edgecolors='k', linewidths=3)
         
         if self.RUN_STARTED:
-            plt.scatter(self.running_PLOT[:,0]+0.5, self.running_PLOT[:,1]+0.5, marker='o',
-                        color='white',edgecolor='red', s=50)
+            plt.scatter(self.running_PLOT[:, 0]+0.5, 
+                        self.running_PLOT[:, 1]+0.5, marker='o',
+                        color='white', edgecolor='red', s=50)
             if len(self.FINI_grid) > 0:
-                dones=np.array(self.FINI_grid)
-                plt.scatter(dones[:,0]+0.5,dones[:,1]+0.5, marker='o', 
+                dones = np.array(self.FINI_grid)
+                plt.scatter(dones[:, 0]+0.5, dones[:, 1]+0.5, marker='o', 
                             color=self.FINI_color, edgecolor='white', s=70)
             if len(self.WARN_grid) > 0:
-                warns=np.array(self.WARN_grid)
+                warns = np.array(self.WARN_grid)
                 plt.scatter(warns[:, 0]+0.5, warns[:, 1]+0.5, marker='^', 
-                            color=self.WARN_color, edgecolor='white',s=70)
+                            color=self.WARN_color, edgecolor='white', s=70)
             if len(self.NOTC_grid) > 0:
-                notcs=np.array(self.NOTC_grid)
-                plt.scatter(notcs[:,0]+0.5,notcs[:,1]+0.5, marker='v', color=self.NOTC_color, edgecolor='white',s=70)
+                notcs = np.array(self.NOTC_grid)
+                plt.scatter(notcs[:, 0]+0.5, notcs[:, 1]+0.5, 
+                            marker='v', color=self.NOTC_color, 
+                            edgecolor='white', s=70)
             if len(self.ABOR_grid) > 0:
-                abors=np.array(self.ABOR_grid)
-                plt.scatter(abors[:,0]+0.5,abors[:,1]+0.5, marker='s', color=self.ABOR_color, edgecolor='white',s=70)
+                abors = np.array(self.ABOR_grid)
+                plt.scatter(abors[:, 0]+0.5, abors[:, 1]+0.5, 
+                            marker='s', color=self.ABOR_color, 
+                            edgecolor='white', s=70)
 
         plt.show()
-        
         
     def prepare_data(self):
         all_ener,all_forces,all_traj,all_stss=[],[],[],[]
@@ -279,78 +282,72 @@ class dft_job_array():
             self.elastic = False
             
         if 'input_dict' in kwargs.keys():
-            self.input_dict=kwargs['input_dict']
+            self.input_dict = kwargs['input_dict']
             
-        if 'steps_blank' in  kwargs.keys():
+        if 'steps_blank' in kwargs.keys():
             self.steps_blank = kwargs['steps_blank']
         else:
             self.steps_blank = [
                 [
-                    {'strain':None,
+                    {'strain': None,
                         'job_specs': {
-                            '-INCAR-NCORE':16,
-                            '-INCAR-LORBIT':1,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-NSW':200,
-                            '-INCAR-PREC':'Accurate',
-                            '-INCAR-IBRION':2,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-SIGMA':0.2,
-                            '-INCAR-ENCUT':400,
-                            '-INCAR-EDIFF':1E-5,
-                            '-INCAR-EDIFFG':1E-4,
-                            'KPPA':3000,
-                            '-INCAR-ISIF':3,
-                        #'-INCAR-ISPIN':2,
-                        }
-                            }
+                            '-INCAR-NCORE': 16,
+                            '-INCAR-LORBIT': 1,
+                            '-INCAR-ISMEAR': 1,
+                            '-INCAR-NSW': 200,
+                            '-INCAR-PREC': 'Accurate',
+                            '-INCAR-IBRION': 2,
+                            '-INCAR-ISMEAR': 1,
+                            '-INCAR-SIGMA': 0.2,
+                            '-INCAR-ENCUT': 400,
+                            '-INCAR-EDIFF': 1E-5,
+                            '-INCAR-EDIFFG': 1E-4,
+                            'KPPA': 3000,
+                            '-INCAR-ISIF': 3,
+                            #  '-INCAR-ISPIN':2,
+                        }}
                 ],
-                    [
-                        {'strain':None,#this one gets modified
-                        'job_specs': {
-                            '-INCAR-NCORE':16,
-                            '-INCAR-LORBIT':1,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-NSW':200,
-                            '-INCAR-PREC':'Accurate',
-                            '-INCAR-IBRION':2,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-SIGMA':0.2,
-                            '-INCAR-ENCUT':400,
-                            '-INCAR-EDIFF':1E-5,
-                            '-INCAR-EDIFFG':1E-4,
-                            'KPPA':3000,
-                            '-INCAR-ISIF':2,
-                        #'-INCAR-ISPIN':2,
-                        }
-                            },
+                [
+                        {'strain': None,  # this one gets modified
+                            'job_specs': {
+                                '-INCAR-NCORE': 16,
+                                '-INCAR-LORBIT': 1,
+                                '-INCAR-ISMEAR': 1,
+                                '-INCAR-NSW': 200,
+                                '-INCAR-PREC': 'Accurate',
+                                '-INCAR-IBRION': 2,
+                                '-INCAR-ISMEAR': 1,
+                                '-INCAR-SIGMA': 0.2,
+                                '-INCAR-ENCUT': 400,
+                                '-INCAR-EDIFF': 1E-5,
+                                '-INCAR-EDIFFG': 1E-4,
+                                'KPPA': 3000,
+                                '-INCAR-ISIF': 2,
+                                #  '-INCAR-ISPIN':2,
+                            }},
 
                     ],
                 [
-                    {'strain':None,
-                    'job_specs': {
-                        '-INCAR-NCORE':16,
-                        '-INCAR-LORBIT':1,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-NSW':0,
-                            '-INCAR-PREC':'Accurate',
-                            '-INCAR-IBRION':-1,
-                            '-INCAR-ISMEAR':1,
-                            '-INCAR-SIGMA':0.2,
-                            '-INCAR-ENCUT':500,
-                            '-INCAR-EDIFF':1E-5,
-                            
-                            '-INCAR-ISIF':3,
-                            'KPPA':5000,
-                        '-INCAR-ISPIN':2,
-                    }
-                        },
-
-                    
-                ]
-        ]
+                    {'strain': None,
+                        'job_specs': {
+                            '-INCAR-NCORE': 16,
+                            '-INCAR-LORBIT': 1,
+                            '-INCAR-ISMEAR': 1,
+                            '-INCAR-NSW': 0,
+                            '-INCAR-PREC': 'Accurate',
+                            '-INCAR-IBRION': -1,
+                            '-INCAR-ISMEAR': 1,
+                            '-INCAR-SIGMA': 0.2,
+                            '-INCAR-ENCUT': 500,
+                            '-INCAR-EDIFF': 1E-5,
+                            '-INCAR-ISIF': 3,
+                            'KPPA': 5000,
+                            '-INCAR-ISPIN': 2,
+                        }},
+                    ]
+                    ]
         if self.elastic:
-            self.steps_sizes=[1, -1, -1]
+            self.steps_sizes = [1, -1, -1]
         else:
             self.steps_sizes=[len(i) for i in self.steps_blank]
         
@@ -1003,13 +1000,15 @@ class dft_job_array():
                         ind = ind[1:4]
                         ind = [int(i) for i in ind]
                         inds.append(ind)
-            if len(inds)>0:
-                return [np.array(inds), np.array([[-1,-1]]*len(inds)), directories, [{}]*len(inds)]
+            if len(inds) > 0:
+                return [np.array(inds), np.array([[-1, -1]]*len(inds)), 
+                        directories, [{}]*len(inds)]
             else: 
-                return [np.empty((0,3),dtype=int),np.empty((0,2),dtype=int),[],[]]
+                return [np.empty((0, 3), dtype=int), 
+                        np.empty((0, 2), dtype=int), [], []]
         else:
-            return [np.empty((0,3),dtype=int),np.empty((0,2),dtype=int),[],[]]
-                
+            return [np.empty((0, 3), dtype=int), 
+                    np.empty((0, 2), dtype=int), [], []]
                 
             #### When vasp6 gets stuck... but probably pyiuron is the one who is not completting it
 
@@ -1046,17 +1045,17 @@ class dft_job_array():
         print('status : ',jobs.status)
 
     def check_current(self):
-        for i,ii in enumerate(self.dft_steps_RES):
-            for j,jj in enumerate(self.dft_steps_RES[i]):
-                print('###########################################################')
-                print('[',i,j,']')
-                print(self.prs_ARR[i,j])
+        for i, ii in enumerate(self.dft_steps_RES):
+            for j, jj in enumerate(self.dft_steps_RES[i]):
+                print('#####################################################')
+                print('[', i, j, ']')
+                print(self.prs_ARR[i, j])
                 #print(len(run_job.dft_steps_RES[i,j]))
                 #print(len(run_job.dft_steps_RES[i,j][0]))
-                if (self.dft_steps_RES[i,j][0] is not None) and (self.dft_steps_RES[i,j][0] != "error") and (len(self.dft_steps_RES[i,j][0])>0):
+                if (self.dft_steps_RES[i, j][0] is not None) and (self.dft_steps_RES[i,j][0] != "error") and (len(self.dft_steps_RES[i,j][0])>0):
 
-                    print(self.dft_steps_RES[i,j][0][0]['job_name'])
-                    if abs(self.dft_steps_RES[i,j][0][0]['energies'][-1]-self.dft_steps_RES[i,j][0][0]['energies'][-2])>1E-2:
+                    print(self.dft_steps_RES[i, j][0][0]['job_name'])
+                    if abs(self.dft_steps_RES[i, j][0][0]['energies'][-1]-self.dft_steps_RES[i,j][0][0]['energies'][-2])>1E-2:
                         ### check if it actually converges ZBRENT problem
                         print('ENERGY CONVERGENCE ISSUE, LAST STEPS')
                     if self.dft_steps_RES[i,j][0][0]['energies'][-1]> 0.0:
@@ -1064,28 +1063,28 @@ class dft_job_array():
                         print('POSITIVE ENERGY')
                         continue
 
-
-                    
-                    print(len(self.dft_steps_RES[i,j][0]),
-                         len(self.dft_steps_RES[i,j][1]),
-                         len(self.dft_steps_RES[i,j][2]),
-                         )
+                    print(len(self.dft_steps_RES[i, j][0]),
+                          len(self.dft_steps_RES[i, j][1]),
+                          len(self.dft_steps_RES[i, j][2]),
+                          )
                 else:
                     continue
                     
-                    
     def getting(self):
         indexes = []
-        sizes   = []
-        for i,ii in enumerate(self.dft_steps_RES):
-            for j,jj in enumerate(self.dft_steps_RES[i]):
-                if (self.dft_steps_RES[i,j][0] is not None) and (self.dft_steps_RES[i,j][0] != "error") and (len(self.dft_steps_RES[i,j][0])>0):
-                    ##check if the one is actually ran
+        sizes = []
+        for i, ii in enumerate(self.dft_steps_RES):
+            for j, jj in enumerate(self.dft_steps_RES[i]):
+                if (self.dft_steps_RES[i, j][0] is not None) and (
+                        self.dft_steps_RES[i, j][0] != "error") and (
+                        len(self.dft_steps_RES[i, j][0]) > 0):
+                    #  check if the one is actually ran
 
-                    if len(self.dft_steps_RES[i,j][1]) == len(self.dft_steps_RES[i,j][2]):
-                        ##check if actually ran the whole elastic steps
+                    if len(self.dft_steps_RES[i, j][1]) == \
+                            len(self.dft_steps_RES[i, j][2]):
+                        #  check if actually ran the whole elastic steps
 
-                        indexes.append([i,j])
+                        indexes.append([i, j])
                         sizes.append(len(self.ics_ARR[i][j]))
                 else:
                     continue
