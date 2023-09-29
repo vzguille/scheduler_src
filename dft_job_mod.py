@@ -122,20 +122,20 @@ class dft_job_array():
                     self.open_cores[i] = 'open'
                     return
 
-                print(job_ind, 'relax_{:000006}_VASP'.format(
+                print(job_ind, 'relax_{:07}_VASP'.format(
                     self.prs_ARR[job_ind[0]][job_ind[1]]))
 
                 try:
                     jobs[i] = proj_pyiron.create_job(
                         job_type=proj_pyiron.job_type.Vasp,
-                        job_name='relax_{:000006}_VASP'.format(
+                        job_name='relax_{:07}_VASP'.format(
                             self.prs_ARR[job_ind[0]][job_ind[1]]),
                         delete_existing_job=DEL_EXJ
                         )
 
                 except Exception as e:
                     print(e)
-                    jobs[i] = proj_pyiron.load('relax_{:000006}_VASP'.format(
+                    jobs[i] = proj_pyiron.load('relax_{:07}_VASP'.format(
                         self.prs_ARR[job_ind[0]][job_ind[1]]))
 
                 print(jobs[i].status)
@@ -197,13 +197,13 @@ class dft_job_array():
         plt.show()
         
     def prepare_data(self):
-        all_ener,all_forces,all_traj,all_stss=[],[],[],[]
-        all_stss_vasp=[]
+        all_ener, all_forces, all_traj, all_stss = [], [], [], []
+        all_stss_vasp = []
         
-        self.index_data=    np.empty(self.szs_ARR.shape,dtype=object)
-        self.no_ionic_steps=0
-        for i,ii in enumerate(self.dft_JOBS):
-            for j,jj in enumerate(ii):
+        self.index_data = np.empty(self.szs_ARR.shape, dtype=object)
+        self.no_ionic_steps = 0
+        for i, ii in enumerate(self.dft_JOBS):
+            for j, jj in enumerate(ii):
                 if (jj is not None) and (jj != "error"):
                     
                     all_ener.append(jj['energies'])
@@ -270,12 +270,17 @@ class dft_job_array():
             return tr_i, te_i
 
     def print_cut(self):
-        print('############################################################\n')
+        print('#'*50+'\n')
 
     def pre_steps(self, **kwargs):
         if 'strain_test' in kwargs.keys():
             self.strains_test = kwargs['strain_test']
-            
+        
+        if 'opt_run' in kwargs.keys():
+            self.opt_run = kwargs['opt_run']
+        else:
+            self.opt_run = False
+
         if 'elastic' in kwargs.keys():
             self.elastic = kwargs['elastic']
         else:
@@ -349,179 +354,174 @@ class dft_job_array():
         if self.elastic:
             self.steps_sizes = [1, -1, -1]
         else:
-            self.steps_sizes=[len(i) for i in self.steps_blank]
+            self.steps_sizes = [len(i) for i in self.steps_blank]
         
-        steps_blank=np.array([[]]*len(self.steps_sizes),dtype=object)
-        
-        '''!!!!! This looks too ugly, is there another way? There must be .copy() works wonder, bug was somewhere else'''
-        self.dft_steps_RES=np.empty(self.szs_ARR.shape,dtype=object)#self.dft_JOBS.copy()
+        self.dft_steps_RES = np.empty(self.szs_ARR.shape, dtype=object)
         for i in range(len(self.dft_steps_RES)):
             for j in range(len(self.dft_steps_RES[i])):
-                self.dft_steps_RES[i,j]=[[] for _ in range(len(self.steps_sizes))]
-        self.dft_steps_RES=np.array(self.dft_steps_RES)
+                self.dft_steps_RES[i, j] = [[] for _ in 
+                                            range(len(self.steps_sizes))]
+        self.dft_steps_RES = np.array(self.dft_steps_RES)
 
-        
-        self.steps_statuses=np.empty(self.szs_ARR.shape,dtype=object)#self.dft_JOBS.copy()        
+        self.steps_statuses = np.empty(self.szs_ARR.shape, dtype=object)
         for i in range(len(self.steps_statuses)):
             for j in range(len(self.steps_statuses[i])):
-                self.steps_statuses[i,j]=[[] for _ in range(len(self.steps_sizes))]
-        self.steps_statuses=np.array(self.steps_statuses)
+                self.steps_statuses[i, j] = [[] for _ in 
+                                             range(len(self.steps_sizes))]
+        self.steps_statuses = np.array(self.steps_statuses)
         
-        self.dict_steps=np.empty(self.szs_ARR.shape,dtype=object)
+        self.dict_steps = np.empty(self.szs_ARR.shape, dtype=object)
         for i in range(len(self.dict_steps)):
             for j in range(len(self.dict_steps[i])):
-                self.dict_steps[i,j]=[[] for _ in range(len(self.steps_sizes))]
-        #self.dict_steps=np.array(self.dict_steps)
-        #BM
-        ## err_arr is filled each time we hit an err abort or we can fill it up each time we set a pre-run or run
-        self.err_arr=self.get_errs()#[np.empty((0,3),dtype=int),np.empty((0,2),dtype=int),[],[]]
-        
-        
-
+                self.dict_steps[i, j] = [[] for _ in range(len(
+                    self.steps_sizes))]
+        #  err_arr is filled each time we hit an err abort or we can fill it up
+        #  each time we set a pre-run or run
+        self.err_arr = self.get_errs()
         
         if self.elastic:
-            if 'lst_strains' in  kwargs.keys():
+            if 'lst_strains' in kwargs.keys():
                 self.lst_strains = kwargs['lst_strains']
             else:
-                self.lst_strains           =[-0.05,0.05]
-            self.crystal_system       =np.empty(self.szs_ARR.shape,dtype=object)
-            self.elastic_size         =np.empty(self.szs_ARR.shape,dtype=object)
-            self.strains_per_mag      =np.empty(self.szs_ARR.shape,dtype=object)
-            self.strains              =np.empty(self.szs_ARR.shape,dtype=object)
+                self.lst_strains = [-0.05, 0.05]
+            self.crystal_system = np.empty(self.szs_ARR.shape, dtype=object)
+            self.elastic_size = np.empty(self.szs_ARR.shape, dtype=object)
+            self.strains_per_mag = np.empty(self.szs_ARR.shape, dtype=object)
+            self.strains = np.empty(self.szs_ARR.shape, dtype=object)
             
-        
-        self.progress =  np.tile(np.array([0,0]), (*self.dft_steps_RES.shape,1))
+        self.progress = np.tile(np.array([0, 0]), 
+                                (*self.dft_steps_RES.shape, 1))
 
     def run_steps(self):
         
-        
         proj_pyiron = Project(path=self.DFT_dir_PA)
         
-        jobs=[0]*self.szs_ARR.shape[1]
+        jobs = [0]*self.szs_ARR.shape[1]
         self.NUM_cores = self.szs_ARR.shape[1]
         self.RUN_STARTED = True
         
-        
-        
-        
         for i in range(self.NUM_cores):
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print('core : ',i)
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
-            job_ind=[self.indeces_RUN[i]//self.NUM_cores,self.indeces_RUN[i]%self.NUM_cores]
-            self.cross_ref[i]= job_ind
-            print('self.indices_RUN',self.indeces_RUN)
-            print(self.indeces_RUN[i],self.NUM_cores)
+            print('!'*50)
+            print('core : ', i)
+            print('!'*50 + '\n')
+            # job_ind are the pointers for the working core
+            job_ind = [self.indeces_RUN[i]//self.NUM_cores, 
+                       self.indeces_RUN[i] % self.NUM_cores]
+            self.cross_ref[i] = job_ind
+            print('self.indices_RUN', self.indeces_RUN)
+            print(self.indeces_RUN[i], self.NUM_cores)
 
-            print('job_ind',job_ind)
-            if job_ind[0]>=self.szs_ARR.shape[0]:
+            print('job_ind', job_ind)
+            # if the pointer is larger than the scheduler, the core sleeps
+            if job_ind[0] >= self.szs_ARR.shape[0]:
                 print('THIS core has reached the end of its use')
-                self.open_cores[i]='open'
+                self.open_cores[i] = 'open'
                 continue
-            if self.szs_ARR[job_ind[0],job_ind[1]]<=1E-12:
+            # if array with the sizes is zero, the core sleeps
+            if self.szs_ARR[job_ind[0], job_ind[1]] <= 1E-12:
                 print('THIS core has reached the end of its use')
-                self.open_cores[i]='open'
+                self.open_cores[i] = 'open'
                 continue
                 
-            print(job_ind,':',self.prs_ARR[job_ind[0]][job_ind[1]],'job_{:000006}'.format(self.prs_ARR[job_ind[0]][job_ind[1]]))
+            print(job_ind, ':', self.prs_ARR[job_ind[0]][job_ind[1]], 
+                  'job_{:07}'.format(self.prs_ARR[job_ind[0]][job_ind[1]]))
             
-            LAST=False
+            LAST = False
             
-            ### modify flags 
-            if len(self.ics_ARR[job_ind[0]][job_ind[1]]) == 1:
-                steps_b = copy.deepcopy(self.steps_blank)
-                steps_b[0][0]['job_specs']['queue_number']=1
-                if self.elastic:
-                    steps_b[1][0]['job_specs']['queue_number']=1
-                    steps_b[2][0]['job_specs']['queue_number']=1
+            for n_outer in range(self.progress[job_ind[0], job_ind[1]][0], 
+                                 len(self.steps_sizes)):
                 
-                
-                
-                
-                
-            else:
-                steps_b = self.steps_blank
-            
-            obj_magmoms=CollinearMagneticStructureAnalyzer(ase_to_pmg(
-                    self.ics_ARR[job_ind[0]][job_ind[1]]),'replace_all')
-            
-            ####################
-            #steps_b[0][0]['job_specs']['-INCAR-MAGMOM']=obj_magmoms.magmoms
-            for mag_i in range(len(steps_b)):
-                if '-INCAR-ISPIN' in steps_b[mag_i][0]['job_specs']:
-                    if steps_b[mag_i][0]['job_specs']['-INCAR-ISPIN']==1 or steps_b[mag_i][0]['job_specs']['-INCAR-ISPIN']==2:
-                        steps_b[mag_i][0]['job_specs']['-INCAR-MAGMOM']=obj_magmoms.magmoms
-            ####################
-            
-            
-            ###############
-            #steps_b[0][0]['job_specs']['-INCAR-MAGMOM']=np.array([0.5]*len(self.ics_ARR[job_ind[0]][job_ind[1]]))
-            #steps_b[1][0]['job_specs']['-INCAR-MAGMOM']=np.array([0.5]*len(self.ics_ARR[job_ind[0]][job_ind[1]]))
-            #steps_b[2][0]['job_specs']['-INCAR-MAGMOM']=np.array([0.5]*len(self.ics_ARR[job_ind[0]][job_ind[1]]))
-            ###############
-            
-            
-            for n_outer in range(self.progress[job_ind[0],job_ind[1]][0], len(self.steps_sizes)):
-                
-                
-                
-                
-                
-                
-                if n_outer > self.progress[job_ind[0],job_ind[1]][0]:
+                if n_outer > self.progress[job_ind[0], job_ind[1]][0]:
                     continue
                     
-                    
-                    
-                    
-                #### OUTER 0: set up all for no elastic, set up first one for elastic
+                #  OUTER 0: set up all for no elastic, 
+                #  set up first one for elastic
                 if n_outer == 0:
+                    
                     ase_outer = self.ics_ARR[job_ind[0]][job_ind[1]].copy()
                     same_root = True
                     
-                    
-                    
-                    
-                    if len(self.dict_steps[job_ind[0],job_ind[1]][0])==0:
-                        '''check if this hasn't run before, for errors more likely'''
-                        if self.elastic == True:
-                            if self.OWN_INCARS:
-                                self.dict_steps[job_ind[0],job_ind[1]][0].append(copy.deepcopy(steps_b[0][0]))
-                                
-                                self.dict_steps[job_ind[0],job_ind[1]][0][0]['job_specs']=merge_with_priority(
-                                    self.own_incars[job_ind[0],job_ind[1]],self.dict_steps[
-                                        job_ind[0],job_ind[1]][0][0]['job_specs'])
-                            else:    
-                                self.dict_steps[job_ind[0],job_ind[1]][0].append(copy.deepcopy(steps_b[0][0]))
+                    if len(self.dict_steps[job_ind[0], job_ind[1]][0]) == 0:
+                        # check if this hasn't run before
+                        # SET UP steps_b, steps_b is a blank 
+                        # reference, the true info as run will be at dict_steps
+                        steps_b = copy.deepcopy(self.steps_blank)
+
+                        #  modify flags if the ase Atom objects only 
+                        #  has one atom to solve issues with VASP
+                        if len(self.ics_ARR[job_ind[0]][job_ind[1]]) == 1:
+                            for mag_i in range(len(steps_b)):
+                                steps_b[mag_i][0]['job_specs'][
+                                    'queue_number'] = 1
                         
+                        obj_magmoms = CollinearMagneticStructureAnalyzer(
+                            ase_to_pmg(self.ics_ARR[job_ind[0]][job_ind[1]]),
+                            'replace_all')
+                        
+                        ####################
+                        #  changes the first job of all steps to add 
+                        #  a MAGMOM to job_specs if ISPIN is 1 or 2 
+                        for mag_i in range(len(steps_b)):
+                            if '-INCAR-ISPIN' in steps_b[
+                                    mag_i][0]['job_specs']:
+                                if steps_b[mag_i][0]['job_specs'][
+                                        '-INCAR-ISPIN'] == 1 or steps_b[
+                                        mag_i][0]['job_specs'][
+                                        '-INCAR-ISPIN'] == 2:
+                                    steps_b[mag_i][0]['job_specs'][
+                                        '-INCAR-MAGMOM'] = obj_magmoms.magmoms
+                        ####################
+
+                        if self.elastic:
+                            if self.OWN_INCARS:
+                                self.dict_steps[
+                                    job_ind[0], job_ind[1]][0].append(
+                                        copy.deepcopy(steps_b[0][0]))
+                                
+                                self.dict_steps[job_ind[0], job_ind[1]][0][0][
+                                    'job_specs'] = merge_with_priority(
+                                    self.own_incars[job_ind[0], job_ind[1]], 
+                                    self.dict_steps[job_ind[0], job_ind[1]][
+                                        0][0]['job_specs'])
+                            else:    
+                                self.dict_steps[
+                                    job_ind[0], job_ind[1]][0].append(
+                                        copy.deepcopy(steps_b[0][0]))
                         else:
-                            self.dict_steps[job_ind[0],job_ind[1]]=copy.deepcopy(steps_b)
+                            self.dict_steps[
+                                job_ind[0], job_ind[1]] = copy.deepcopy(
+                                    steps_b)
                 
-                #### OUTER 1: only elastic info has to be added here
+                #  OUTER 1: only elastic info has to be added here
                 elif n_outer == 1:
 
-                    #### run in all above 0 ####
-                    same_root = (len(self.dict_steps[job_ind[0],job_ind[1]][n_outer-1]) == 1)
+                    #  run in all above 0 ####
+                    same_root = (len(self.dict_steps[job_ind[0], 
+                                 job_ind[1]][n_outer-1]) == 1)
                     if same_root:
-                        ase_outer = self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer-1][0]['trajectories'][-1].copy()
-                    ############################
+                        ase_outer = self.dft_steps_RES[
+                            job_ind[0], job_ind[1]][n_outer-1][0][
+                            'trajectories'][-1].copy()
+                    ###################################
                     
-                    if self.elastic == True:
-                        if len(self.dict_steps[job_ind[0],job_ind[1]][1])==0:
-                            '''check if this hasn't run before , has to be run after ase_outer for consistency'''
-                            self.strains_per_mag[job_ind[0],job_ind[1]]=expanded_strain_ase_list(
-                                ase_outer, self.input_dict,self.lst_strains)
+                    if self.elastic is True:
+                        if len(self.dict_steps[job_ind[0], 
+                                               job_ind[1]][1]) == 0:
+                            '''check if this hasn't run before , 
+                            has to be run after ase_outer for consistency'''
+                            self.strains_per_mag[job_ind[0], job_ind[1]] = \
+                                expanded_strain_ase_list(
+                                ase_outer, self.input_dict, self.lst_strains)
                             
-                            self.strains[job_ind[0],job_ind[1]]=flatten_list(self.strains_per_mag[job_ind[0],job_ind[1]])
+                            self.strains[job_ind[0], job_ind[1]] = \
+                                flatten_list(self.strains_per_mag[job_ind[0], 
+                                             job_ind[1]])
                             
-                            
-                            
-                            
-                            self.elastic_size[job_ind[0],job_ind[1]]=len(self.strains[job_ind[0],job_ind[1]])
-                            self.crystal_system[job_ind[0],job_ind[1]]=get_spacegroup(ase_outer)
+                            self.elastic_size[job_ind[0], job_ind[1]] = len(
+                                self.strains[job_ind[0], job_ind[1]])
+                            self.crystal_system[job_ind[0], job_ind[1]] = \
+                                get_spacegroup(ase_outer)
 
-
-                            
                             if self.OWN_INCARS:
                                 for ei in range(self.elastic_size[job_ind[0],job_ind[1]]):
                                     self.dict_steps[job_ind[0],job_ind[1]][1].append(copy.deepcopy(steps_b[1][0]))
@@ -531,13 +531,10 @@ class dft_job_array():
                                     self.dict_steps[job_ind[0],job_ind[1]][1][ei]['job_specs']=merge_with_priority(
                                     self.own_incars[job_ind[0],job_ind[1]],self.dict_steps[job_ind[0],job_ind[1]][1][ei]['job_specs'])
                                     
-                                    
-                                    
                                     self.dict_steps[job_ind[0],job_ind[1]][2].append(copy.deepcopy(steps_b[2][0]))
                                     self.dict_steps[job_ind[0],job_ind[1]][2][ei]['job_specs']=merge_with_priority(
                                     self.own_incars[job_ind[0],job_ind[1]],self.dict_steps[job_ind[0],job_ind[1]][2][ei]['job_specs'])
-                                                                                                                  
-                                    
+                                                                                                                                                      
                             else:
                                 for ei in range(self.elastic_size[job_ind[0],job_ind[1]]):
                                     self.dict_steps[job_ind[0],job_ind[1]][1].append(copy.deepcopy(steps_b[1][0]))
@@ -551,20 +548,22 @@ class dft_job_array():
                     if same_root:
                         ase_outer = self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer-1][0]['trajectories'][-1].copy()
                 
-
-
-                #print('len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])',len(self.dict_steps[job_ind[0],job_ind[1]][n_outer]))
-                for n_inner in range(self.progress[job_ind[0],job_ind[1]][1], 
-                                     len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])):
-                    #print('n_inner',n_inner)
-                    #print('self.progress[job_ind[0],job_ind[1]]',self.progress[job_ind[0],job_ind[1]])
-                    if n_inner > self.progress[job_ind[0],job_ind[1]][1]:
+                # print('len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])',len(self.dict_steps[job_ind[0],job_ind[1]][n_outer]))
+                for n_inner in range(self.progress[job_ind[0], job_ind[1]][1], 
+                                     len(self.dict_steps[
+                                        job_ind[0], job_ind[1]][n_outer])):
+                    # debug
+                    # print('n_inner',n_inner)
+                    # print('self.progress[job_ind[0],job_ind[1]]',self.progress[job_ind[0],job_ind[1]])
+                    if n_inner > self.progress[
+                            job_ind[0], job_ind[1]][1]:
                         continue
                         
-                    print('job_ind: {:000006}'.format(self.prs_ARR[job_ind[0]][job_ind[1]]),
-                          'n_outer:',n_outer,' n_inner:',n_inner,'...',
-                         'vasp_{:000006}'.format(
-                                                  self.prs_ARR[job_ind[0]][job_ind[1]]
+                    print('job_ind: {:07}'.format(self.prs_ARR[
+                        job_ind[0]][job_ind[1]]), 'n_outer:', n_outer, 
+                        ' n_inner:', n_inner, '...', 'vasp_{:07}'.format(
+                                                self.prs_ARR[
+                                                    job_ind[0]][job_ind[1]]
                                               )+'_{:02}'.format(
                                                   n_outer
                                               )+'_{:02}'.format(
@@ -572,114 +571,141 @@ class dft_job_array():
                                               )
                          )
                     
-                    #print('HERE#####',[len(self.steps_sizes)-1,len(self.dict_steps[-1])-1])
-                    if [n_outer,n_inner]==[len(self.dict_steps[job_ind[0],job_ind[1]])-1,
-                                           len(self.dict_steps[job_ind[0],job_ind[1]][-1])-1]:
+                    # print('HERE#####',[len(self.steps_sizes)-1,len(self.dict_steps[-1])-1])
+                    if [n_outer, n_inner] == [len(self.dict_steps[job_ind[0], 
+                                                  job_ind[1]])-1,
+                                              len(self.dict_steps[job_ind[0],
+                                                  job_ind[1]][-1])-1]:
                         print('LAST')
-                        LAST=True
+                        LAST = True
                     
-                    for key, value in self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner].items():
-                        print(key,' : ', value)
+                    for key, value in self.dict_steps[job_ind[0], job_ind[1]][
+                                                    n_outer][n_inner].items():
+                        print(key, ' : ', value)
                     
                     if same_root:
-                        ase_inner = self.apply_strain(ase_outer.copy(),
-                                                      self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['strain'])
+                        ase_inner = self.apply_strain(
+                            ase_outer.copy(), self.dict_steps[
+                                job_ind[0], job_ind[1]][n_outer][n_inner][
+                                'strain'])
                     
                     else:
-                        prev_inner = self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer-1][n_inner]['trajectories'][-1].copy()
-                        ase_inner = self.apply_strain(prev_inner.copy(),
-                                                      self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['strain'])
+                        prev_inner = self.dft_steps_RES[
+                            job_ind[0], job_ind[1]][n_outer-1][n_inner][
+                            'trajectories'][-1].copy()
+                        ase_inner = self.apply_strain(
+                            prev_inner.copy(), self.dict_steps[
+                                job_ind[0], job_ind[1]][n_outer][n_inner][
+                                'strain'])
                     
                     try:
-                        jobs[i]=proj_pyiron.create_job(job_type=proj_pyiron.job_type.Vasp,
-                                              job_name='vasp_{:000006}'.format(
-                                                  self.prs_ARR[job_ind[0]][job_ind[1]]
+                        jobs[i] = proj_pyiron.create_job(
+                            job_type=proj_pyiron.job_type.Vasp,
+                            job_name='vasp_{:07}'.format(
+                                self.prs_ARR[job_ind[0]][job_ind[1]]
                                               )+'_{:02}'.format(
                                                   n_outer
                                               )+'_{:02}'.format(
                                                   n_inner
                                               ),
-                                          delete_existing_job=False)
-                    except:
-                        jobs[i]=proj_pyiron.load('vasp_{:000006}'.format(
-                                                  self.prs_ARR[job_ind[0]][job_ind[1]]
-                                              )+'_{:02}'.format(
-                                                  n_outer
-                                              )+'_{:02}'.format(
-                                                  n_inner
-                                              ))
+                            delete_existing_job=False)
+                    except Exception as e:
+                        print('Exception in loading job: {}'.format(e))
+                        jobs[i] = proj_pyiron.load('vasp_{:07}'.format(
+                            self.prs_ARR[job_ind[0]][job_ind[1]]
+                                  )+'_{:02}'.format(
+                                      n_outer
+                                  )+'_{:02}'.format(
+                                      n_inner
+                                  ))
                         
-                    print('status : ',jobs[i].status)
+                    print('status : ', jobs[i].status)
 
-                    if jobs[i].status=='initialized':
+                    if jobs[i].status == 'initialized':
                         
                         jobs[i].structure = ase_to_pyiron(ase_inner.copy())
-                        ### job function change
+                        # job function change
                         
-                        print(i, '-->',job_ind,':',self.prs_ARR[job_ind[0]][job_ind[1]],' [',n_outer,',',n_inner,'] ','PASS TO RUN')
-                        self.relax_blank(jobs[i],self.dict_steps[job_ind[0]][job_ind[1]][n_outer][n_inner]['job_specs'])
+                        print(i, '-->', job_ind, ':', self.prs_ARR[
+                            job_ind[0]][job_ind[1]], ' [',
+                            n_outer, ',', n_inner, '] ', 'PASS TO RUN')
+                        self.relax_blank(jobs[i], self.dict_steps[job_ind[0]][
+                            job_ind[1]][n_outer][n_inner]['job_specs'])
                         
-                        #sleep(3+3*np.random.random())
-                        self.running_PLOT[i]=np.array([job_ind[1],job_ind[0]])
-                        self.open_cores[i]='in use'
+                        self.running_PLOT[i] = np.array([job_ind[1], 
+                                                         job_ind[0]])
+                        self.open_cores[i] = 'in use'
                         continue
                         
-                    if jobs[i].status=='running' or jobs[i].status=='collect':
-                        self.running_PLOT[i]=np.array([job_ind[1],job_ind[0]])
-                        self.open_cores[i]='in use'
+                    if jobs[i].status == 'running' or \
+                            jobs[i].status == 'collect':
+                        self.running_PLOT[i] = np.array([job_ind[1], 
+                                                         job_ind[0]])
+                        self.open_cores[i] = 'in use'
                         continue
                     
-                    if jobs[i].status=='finished': 
-                        self.running_PLOT[i]=np.array([-0.5,-0.5])
+                    if jobs[i].status == 'finished': 
+                        self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
+                            self.dft_steps_RES[
+                                job_ind[0], job_ind[1]][n_outer].append(
+                                    self.get_dft_results_pyiron(jobs[i]))
                             
-                            
-                            if [job_ind[1],job_ind[0]] not in self.FINI_grid:
-                                self.FINI_grid.append([job_ind[1],job_ind[0]])
+                            if [job_ind[1], job_ind[0]] not in self.FINI_grid:
+                                self.FINI_grid.append([job_ind[1], job_ind[0]])
                                 self.FINI_color.append('green')
 
-                            
                             print('pass FINI')
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass FINI')
+                            self.steps_statuses[job_ind[0], 
+                                                job_ind[1]][n_outer].append(
+                                                    'pass FINI')
                             
-                            
-
                         except Exception as e:
                             print(e)
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
+                            self.dft_steps_RES[
+                                job_ind[0], job_ind[1]][n_outer].append(
+                                    'error')
 
-                            if [job_ind[1],job_ind[0]] not in self.FINI_grid:
-                                self.FINI_grid.append([job_ind[1],job_ind[0]])
+                            if [job_ind[1], job_ind[0]] not in self.FINI_grid:
+                                self.FINI_grid.append([job_ind[1], job_ind[0]])
                                 self.FINI_color.append('red')
 
                             print('error FINI: ', e)
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('error FINI')
+                            self.steps_statuses[
+                                job_ind[0], job_ind[1]][n_outer].append(
+                                    'error FINI')
                         
-                        if self.progress[job_ind[0],job_ind[1]][1]==len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])-1:
-                            self.progress[job_ind[0],job_ind[1]][0] = self.progress[job_ind[0],job_ind[1]][0] + 1
-                            self.progress[job_ind[0],job_ind[1]][1] = 0
+                        if self.progress[job_ind[0], job_ind[1]][1] == len(
+                                self.dict_steps[job_ind[0], job_ind[1]][
+                                n_outer])-1:
+                            self.progress[job_ind[0], job_ind[1]][0] = \
+                                self.progress[job_ind[0], job_ind[1]][0] + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = 0
                         else:
-                            self.progress[job_ind[0],job_ind[1]][1] = self.progress[job_ind[0],job_ind[1]][1] + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = \
+                                self.progress[job_ind[0], job_ind[1]][1] + 1
                         if LAST:
-                            self.open_cores[i]='open'
+                            self.open_cores[i] = 'open'
                             self.indeces_RUN[i] = self.job_crrnt
                             self.job_crrnt = self.job_crrnt + 1
                         continue
                         
-                    if jobs[i].status=='aborted': 
-                        self.running_PLOT[i]=np.array([-0.5,-0.5])
+                    if jobs[i].status == 'aborted': 
+                        self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
-                            if [job_ind[1],job_ind[0]] not in self.ABOR_grid:
-                                self.ABOR_grid.append([job_ind[1],job_ind[0]])
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append(self.get_dft_results_pyiron(
+                                    jobs[i]))
+                            if [job_ind[1], job_ind[0]] not in self.ABOR_grid:
+                                self.ABOR_grid.append([job_ind[1], job_ind[0]])
                                 self.ABOR_color.append('green')
 
                             print('pass ABOR')
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass ABOR')
+                            self.steps_statuses[job_ind[0], job_ind[1]][
+                                n_outer].append('pass ABOR')
 
                         except Exception as e:
                             # self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
@@ -690,127 +716,130 @@ class dft_job_array():
 
                             print('error ABOR: ', e)
                             self.print_cut()
-                            #self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('error ABOR')
-                            
+                            # self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('error ABOR')
                             
                             ######
-                            #self.err_arr=[np.empty((0,3),dtype=int),[],[]]
+                            # self.err_arr=[np.empty((0,3),dtype=int),[],[]]
                             
+                            err_count = np.count_nonzero(np.all(
+                                self.err_arr[0] == np.array([
+                                    self.prs_ARR[job_ind[0]][job_ind[1]], 
+                                    n_outer, n_inner]), axis=1))
                             
-                            
-                            err_count = np.count_nonzero(np.all(self.err_arr[0] == np.array(
-                                [self.prs_ARR[job_ind[0]][job_ind[1]],n_outer,n_inner]), axis=1))
-                            
-                            
-                                                   
-                                                   
-                            self.err_arr[0] = np.vstack((self.err_arr[0],
-                                                        np.array(
-                                [self.prs_ARR[job_ind[0]][job_ind[1]],n_outer,n_inner]) ))
+                            self.err_arr[0] = \
+                                np.vstack((self.err_arr[0], np.array([
+                                    self.prs_ARR[job_ind[0]][job_ind[1]],
+                                    n_outer, n_inner])))
                                
-                            self.err_arr[1] = np.vstack((self.err_arr[1],job_ind))
+                            self.err_arr[1] = np.vstack((
+                                self.err_arr[1], job_ind))
                                
-                            self.err_arr[2].append(jobs[i].name+'_err_{:02}'.format(err_count))
+                            self.err_arr[2].append(
+                                jobs[i].name+'_err_{:02}'.format(err_count))
                                
-                            self.err_arr[3].append(copy.deepcopy(self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]))
+                            self.err_arr[3].append(copy.deepcopy(
+                                self.dict_steps[job_ind[0], job_ind[1]][
+                                    n_outer][n_inner]))
                             
                             if err_count >= 5:
                                 print('giving up on this run')
-                                self.open_cores[i]='open'
+                                self.open_cores[i] = 'open'
                                 self.indeces_RUN[i] = self.job_crrnt
                                 self.job_crrnt = self.job_crrnt + 1
                                 continue
                             
-                            #BM
-                            jobs[i].copy_to(new_job_name=jobs[i].name+'_err_{:02}'.format(err_count),copy_files=True,
+                            jobs[i].copy_to(new_job_name=jobs[i].name +
+                                            '_err_{:02}'.format(err_count),
+                                            copy_files=True, 
                                             new_database_entry=False)
                             
-                            jobs[i]=proj_pyiron.create_job(job_type=proj_pyiron.job_type.Vasp,
-                                              job_name='vasp_{:000006}'.format(
-                                                  self.prs_ARR[job_ind[0]][job_ind[1]]
-                                              )+'_{:02}'.format(
+                            jobs[i] = proj_pyiron.create_job(
+                                job_type=proj_pyiron.job_type.Vasp,
+                                job_name='vasp_{:07}'.format(
+                                    self.prs_ARR[job_ind[0]][job_ind[1]]
+                                    )+'_{:02}'.format(
                                                   n_outer
                                               )+'_{:02}'.format(
                                                   n_inner
                                               ),
-                                          delete_existing_job=True)
+                                delete_existing_job=True)
                             
-                            
-                            #### update
-                            self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['KPPA']=\
-                            self.steps_blank[n_outer][0]['job_specs']['KPPA']+500*(err_count+1)
-                            self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['-INCAR-ENCUT']=\
-                            self.steps_blank[n_outer][0]['job_specs']['-INCAR-ENCUT']+20*(err_count+1)
+                            # update
+                            self.dict_steps[job_ind[0], job_ind[1]][n_outer][
+                                n_inner]['job_specs']['KPPA'] = \
+                                self.steps_blank[n_outer][0]['job_specs'][
+                                'KPPA'] + 500*(err_count+1)
+                            self.dict_steps[job_ind[0], job_ind[1]][n_outer][
+                                n_inner]['job_specs']['-INCAR-ENCUT'] = \
+                                self.steps_blank[n_outer][0]['job_specs'][
+                                '-INCAR-ENCUT'] + 20*(err_count+1)
+                            continue    
+                            # Here when we get an error we continue to 
+                            # next n_inner who should not run again....
 
-                            #### update
-                            #self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['k_mesh']=\
-                            #self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['k_mesh']+1E-1
-                            
-                            #### update
-                            #self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['-INCAR-ISYM']=\
-                            #self.dict_steps[job_ind[0],job_ind[1]][n_outer][n_inner]['job_specs']['-INCAR-ISYM']*10
-                            
-                            #######
-                            continue    ####Here when we get an error we continue to next n_inner who should not run again.... 
-                                        ########then why?
-                            
-                            
-
-                        #self.open_cores[i]='open'
-                        if self.progress[job_ind[0],job_ind[1]][1]==len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])-1:
-                            self.progress[job_ind[0],job_ind[1]][0] = self.progress[job_ind[0],job_ind[1]][0] + 1
-                            self.progress[job_ind[0],job_ind[1]][1] = 0
+                        # self.open_cores[i]='open'
+                        if self.progress[job_ind[0], job_ind[1]][1] == len(
+                                self.dict_steps[job_ind[0], job_ind[1]][
+                                n_outer])-1:
+                            self.progress[job_ind[0], job_ind[1]][0] = \
+                                self.progress[job_ind[0], job_ind[1]][0] + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = 0
                         else:
-                            self.progress[job_ind[0],job_ind[1]][1] = self.progress[job_ind[0],job_ind[1]][1] + 1
-                        #self.indeces_RUN[i] = self.job_crrnt
-                        #self.job_crrnt = self.job_crrnt + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = \
+                                self.progress[job_ind[0], job_ind[1]][1] + 1
                         if LAST:
-                            self.open_cores[i]='open'
+                            self.open_cores[i] = 'open'
                             self.indeces_RUN[i] = self.job_crrnt
                             self.job_crrnt = self.job_crrnt + 1
                         continue
-                    if jobs[i].status=='not_converged': 
-                        self.running_PLOT[i]=np.array([-0.5,-0.5])
+                    if jobs[i].status == 'not_converged': 
+                        self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
-                            if [job_ind[1],job_ind[0]] not in self.NOTC_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append(self.get_dft_results_pyiron(
+                                    jobs[i]))
+                            if [job_ind[1], job_ind[0]] not in self.NOTC_grid:
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('green')
 
                             print('pass NOTC')
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass NOTC')
+                            self.steps_statuses[job_ind[0], job_ind[1]][
+                                n_outer].append('pass NOTC')
 
                         except Exception as e:
                             print(e)
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append('error')
 
-                            if [job_ind[1],job_ind[0]] not in self.NOTC_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                            if [job_ind[1], job_ind[0]] not in self.NOTC_grid:
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('red')
 
                             print('error NOTC: ', e)
                             self.print_cut()
-                            self.step_statuses[job_ind[0],job_ind[1]][n_outer].append('error NOTC')
+                            self.step_statuses[job_ind[0], job_ind[1]][
+                                n_outer].append('error NOTC')
 
-                        #self.open_cores[i]='open'
-                        if self.progress[job_ind[0],job_ind[1]][1]==len(self.dict_steps[job_ind[0],job_ind[1]][n_outer])-1:
-                            self.progress[job_ind[0],job_ind[1]][0] = self.progress[job_ind[0],job_ind[1]][0] + 1
-                            self.progress[job_ind[0],job_ind[1]][1] = 0
+                        if self.progress[job_ind[0], job_ind[1]][1] == len(
+                                self.dict_steps[job_ind[0], job_ind[1]][
+                                n_outer])-1:
+                            self.progress[job_ind[0], job_ind[1]][0] = \
+                                self.progress[job_ind[0], job_ind[1]][0] + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = 0
                         else:
-                            self.progress[job_ind[0],job_ind[1]][1] = self.progress[job_ind[0],job_ind[1]][1] + 1
-                        #self.indeces_RUN[i] = self.job_crrnt
-                        #self.job_crrnt = self.job_crrnt + 1
+                            self.progress[job_ind[0], job_ind[1]][1] = \
+                                self.progress[job_ind[0], job_ind[1]][1] + 1
                         
                         if LAST:
-                            self.open_cores[i]='open'
+                            self.open_cores[i] = 'open'
                             self.indeces_RUN[i] = self.job_crrnt
                             self.job_crrnt = self.job_crrnt + 1
                         continue
-                    if jobs[i].status=='warning': 
-                        self.running_PLOT[i]=np.array([-0.5,-0.5])
+                    if jobs[i].status == 'warning': 
+                        self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
                             if [job_ind[1],job_ind[0]] not in self.WARN_grid:
                                 self.NOTC_grid.append([job_ind[1],job_ind[0]])
                                 self.NOTC_color.append('green')
@@ -867,7 +896,7 @@ class dft_job_array():
                                             new_database_entry=False)
                             
                             jobs[i]=proj_pyiron.create_job(job_type=proj_pyiron.job_type.Vasp,
-                                              job_name='vasp_{:000006}'.format(
+                                              job_name='vasp_{:07}'.format(
                                                   self.prs_ARR[job_ind[0]][job_ind[1]]
                                               )+'_{:02}'.format(
                                                   n_outer
@@ -1019,7 +1048,7 @@ class dft_job_array():
         
         try:
             jobs=proj_pyiron.create_job(job_type=proj_pyiron.job_type.Vasp,
-                                  job_name='vasp_{:000006}'.format(
+                                  job_name='vasp_{:07}'.format(
                                       inds[0]
                                   )+'_{:02}'.format(
                                       inds[1]
@@ -1028,7 +1057,7 @@ class dft_job_array():
                                   ),
                               delete_existing_job=DELETE)
         except:
-            jobs=proj_pyiron.load('vasp_{:000006}'.format(
+            jobs=proj_pyiron.load('vasp_{:07}'.format(
                                       inds[0]
                                   )+'_{:02}'.format(
                                       inds[1]
