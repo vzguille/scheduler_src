@@ -523,12 +523,20 @@ class dft_job_array():
                                 get_spacegroup(ase_outer)
 
                             if self.OWN_INCARS:
-                                for ei in range(self.elastic_size[job_ind[0],job_ind[1]]):
-                                    self.dict_steps[job_ind[0],job_ind[1]][1].append(copy.deepcopy(steps_b[1][0]))
-                                    self.dict_steps[job_ind[0],job_ind[1]][1][ei]['strain']=self.strains[
-                                        job_ind[0],job_ind[1]][ei]
+                                for ei in range(self.elastic_size[job_ind[0], 
+                                                                  job_ind[1]]):
+                                    self.dict_steps[job_ind[0],
+                                                    job_ind[1]][1].append(
+                                                        copy.deepcopy(
+                                                            steps_b[1][0]))
+                                    self.dict_steps[job_ind[0],
+                                                    job_ind[1]][1][ei][
+                                                    'strain'] = self.strains[
+                                        job_ind[0], job_ind[1]][ei]
                                     
-                                    self.dict_steps[job_ind[0],job_ind[1]][1][ei]['job_specs']=merge_with_priority(
+                                    self.dict_steps[job_ind[0],
+                                                    job_ind[1]][1][ei][
+                                                    'job_specs']=merge_with_priority(
                                     self.own_incars[job_ind[0],job_ind[1]],self.dict_steps[job_ind[0],job_ind[1]][1][ei]['job_specs'])
                                     
                                     self.dict_steps[job_ind[0],job_ind[1]][2].append(copy.deepcopy(steps_b[2][0]))
