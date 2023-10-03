@@ -9,11 +9,6 @@ from ase import Atoms
 from ase.build import bulk
 from itertools import chain
 
-
-from icet.tools import enumerate_structures, ConvexHull
-from icet import ClusterSpace, StructureContainer, ClusterExpansion
-from trainstation import CrossValidationEstimator
-
 from random import random
 
 import pandas as pd
@@ -27,8 +22,6 @@ from matplotlib import colors
 
 from sklearn.model_selection import train_test_split
 
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-
 
 from pyiron import Project
 from pyiron import ase_to_pyiron
@@ -37,10 +30,6 @@ from pyiron.vasp.outcar import Outcar
 from pymatgen.io.vasp.inputs import Kpoints
 
 
-from pymatgen.io import ase as pgase
-
-ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
-pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 
 from ase.spacegroup import get_spacegroup
@@ -51,7 +40,14 @@ from pymatgen.analysis.magnetism import CollinearMagneticStructureAnalyzer
 import copy
 
 
-from elastool import stress_tens_to_voigt, stress_to_dict, stress_accom, calc_elastic_constants, group_ordering, expanded_strain_ase_list,flatten_list
+from elastool import (stress_tens_to_voigt, stress_to_dict, 
+                      stress_accom, calc_elastic_constants, 
+                      group_ordering, expanded_strain_ase_list, flatten_list)
+
+from pymatgen.io import ase as pgase
+
+ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
+pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 np.random.seed(seed=42)
 
@@ -63,6 +59,48 @@ class dft_job_array():
         self.CONV = -1.60218E2
 
     def from_arrays_starter(self, szs, prs, ics, pyiron_proj_name, **kwargs):
+        self.szs_ARR = szs
+        self.prs_ARR = prs
+        self.ics_ARR = ics
+        self.DFT_dir_PA = pyiron_proj_name
+        if 'own_incars' in kwargs:
+            self.own_incars = kwargs['own_incars']
+            self.OWN_INCARS = True
+        else:
+            self.OWN_INCARS = False
+        
+        self.RUN_indices = np.zeros(self.szs_ARR.shape[1], dtype=int)
+        
+        self.statuses = np.empty(self.szs_ARR.shape, dtype=object)
+        
+        self.open_cores = ['open']*self.szs_ARR.shape[1]
+        self.cross_ref = np.empty(self.szs_ARR.shape[1], dtype=object)
+        
+        print(self.open_cores)
+        self.indeces_RUN = np.arange(self.szs_ARR.shape[1])
+        print(self.indeces_RUN)
+        
+        self.NUM_cores = self.szs_ARR.shape[1]
+        
+        print(self.prs_ARR)
+        self.job_crrnt = self.NUM_cores
+        
+        self.dft_JOBS = np.empty(self.szs_ARR.shape, dtype=object)
+        
+        print(self.dft_JOBS)
+        
+        self.running_PLOT = np.ones((self.NUM_cores, 2))*-0.5
+        
+        self.FINI_grid = []
+        self.ABOR_grid = []
+        self.NOTC_grid = []
+        self.WARN_grid = []
+        self.FINI_color = []
+        self.ABOR_color = []
+        self.NOTC_color = []
+        self.WARN_color = []
+
+    def from_opt_starter(self, szs, prs, ics, pyiron_proj_name, **kwargs):
         self.szs_ARR = szs
         self.prs_ARR = prs
         self.ics_ARR = ics
@@ -277,9 +315,10 @@ class dft_job_array():
             self.strains_test = kwargs['strain_test']
         
         if 'opt_run' in kwargs.keys():
+            self.OPT = True
             self.opt_run = kwargs['opt_run']
         else:
-            self.opt_run = False
+            self.OPT = False
 
         if 'elastic' in kwargs.keys():
             self.elastic = kwargs['elastic']
@@ -351,7 +390,9 @@ class dft_job_array():
                         }},
                     ]
                     ]
-        if self.elastic:
+        if self.OPT:
+            self.steps_sizes = [self.opt_run['initial_no'], -1]
+        elif self.elastic:
             self.steps_sizes = [1, -1, -1]
         else:
             self.steps_sizes = [len(i) for i in self.steps_blank]
@@ -491,6 +532,13 @@ class dft_job_array():
                             self.dict_steps[
                                 job_ind[0], job_ind[1]] = copy.deepcopy(
                                     steps_b)
+
+                        if self.OPT:
+                            for i in self.opt_run['first_trial_no']:
+                                self.dict_steps[
+                                    job_ind[0], job_ind[1]] = copy.deepcopy(
+                                        steps_b)
+
                 
                 #  OUTER 1: only elastic info has to be added here
                 elif n_outer == 1:
