@@ -100,48 +100,6 @@ class dft_job_array():
         self.NOTC_color = []
         self.WARN_color = []
 
-    def from_opt_starter(self, szs, prs, ics, pyiron_proj_name, **kwargs):
-        self.szs_ARR = szs
-        self.prs_ARR = prs
-        self.ics_ARR = ics
-        self.DFT_dir_PA = pyiron_proj_name
-        if 'own_incars' in kwargs:
-            self.own_incars = kwargs['own_incars']
-            self.OWN_INCARS = True
-        else:
-            self.OWN_INCARS = False
-        
-        self.RUN_indices = np.zeros(self.szs_ARR.shape[1], dtype=int)
-        
-        self.statuses = np.empty(self.szs_ARR.shape, dtype=object)
-        
-        self.open_cores = ['open']*self.szs_ARR.shape[1]
-        self.cross_ref = np.empty(self.szs_ARR.shape[1], dtype=object)
-        
-        print(self.open_cores)
-        self.indeces_RUN = np.arange(self.szs_ARR.shape[1])
-        print(self.indeces_RUN)
-        
-        self.NUM_cores = self.szs_ARR.shape[1]
-        
-        print(self.prs_ARR)
-        self.job_crrnt = self.NUM_cores
-        
-        self.dft_JOBS = np.empty(self.szs_ARR.shape, dtype=object)
-        
-        print(self.dft_JOBS)
-        
-        self.running_PLOT = np.ones((self.NUM_cores, 2))*-0.5
-        
-        self.FINI_grid = []
-        self.ABOR_grid = []
-        self.NOTC_grid = []
-        self.WARN_grid = []
-        self.FINI_color = []
-        self.ABOR_color = []
-        self.NOTC_color = []
-        self.WARN_color = []
-
     def start_specific(self, job_ind, DEL_EXJ=True, custom_relaxer=None):
         jobs = [0]*self.szs_ARR.shape[1]
         proj_pyiron = Project(path=self.DFT_dir_PA)
@@ -313,12 +271,6 @@ class dft_job_array():
     def pre_steps(self, **kwargs):
         if 'strain_test' in kwargs.keys():
             self.strains_test = kwargs['strain_test']
-        
-        if 'opt_run' in kwargs.keys():
-            self.OPT = True
-            self.opt_run = kwargs['opt_run']
-        else:
-            self.OPT = False
 
         if 'elastic' in kwargs.keys():
             self.elastic = kwargs['elastic']
@@ -390,9 +342,7 @@ class dft_job_array():
                         }},
                     ]
                     ]
-        if self.OPT:
-            self.steps_sizes = [self.opt_run['initial_no'], -1]
-        elif self.elastic:
+        if self.elastic:
             self.steps_sizes = [1, -1, -1]
         else:
             self.steps_sizes = [len(i) for i in self.steps_blank]
@@ -532,12 +482,6 @@ class dft_job_array():
                             self.dict_steps[
                                 job_ind[0], job_ind[1]] = copy.deepcopy(
                                     steps_b)
-
-                        if self.OPT:
-                            for i in self.opt_run['first_trial_no']:
-                                self.dict_steps[
-                                    job_ind[0], job_ind[1]] = copy.deepcopy(
-                                        steps_b)
 
                 
                 #  OUTER 1: only elastic info has to be added here
@@ -895,21 +839,25 @@ class dft_job_array():
                     if jobs[i].status == 'warning': 
                         self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0], job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append(
+                                    self.get_dft_results_pyiron(jobs[i]))
                             if [job_ind[1],job_ind[0]] not in self.WARN_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('green')
 
                             print('pass WARN')
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass WARN')
+                            self.steps_statuses[job_ind[0], job_ind[1]][
+                                n_outer].append('pass WARN')
 
                         except Exception as e:
                             print(e)
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append('error')
 
-                            if [job_ind[1],job_ind[0]] not in self.NOTC_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                            if [job_ind[1], job_ind[0]] not in self.NOTC_grid:
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('red')
 
                             print('error WARN: ', e)
