@@ -1,5 +1,6 @@
 from itertools import chain
 import numpy as np
+import pandas as pd
 import json
 import shutil
 from collections import OrderedDict

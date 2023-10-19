@@ -9,11 +9,6 @@ from ase import Atoms
 from ase.build import bulk
 from itertools import chain
 
-
-from icet.tools import enumerate_structures, ConvexHull
-from icet import ClusterSpace, StructureContainer, ClusterExpansion
-from trainstation import CrossValidationEstimator
-
 from random import random
 
 import pandas as pd
@@ -27,8 +22,6 @@ from matplotlib import colors
 
 from sklearn.model_selection import train_test_split
 
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-
 
 from pyiron import Project
 from pyiron import ase_to_pyiron
@@ -37,10 +30,6 @@ from pyiron.vasp.outcar import Outcar
 from pymatgen.io.vasp.inputs import Kpoints
 
 
-from pymatgen.io import ase as pgase
-
-ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
-pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 
 from ase.spacegroup import get_spacegroup
@@ -51,7 +40,14 @@ from pymatgen.analysis.magnetism import CollinearMagneticStructureAnalyzer
 import copy
 
 
-from elastool import stress_tens_to_voigt, stress_to_dict, stress_accom, calc_elastic_constants, group_ordering, expanded_strain_ase_list,flatten_list
+from elastool import (stress_tens_to_voigt, stress_to_dict, 
+                      stress_accom, calc_elastic_constants, 
+                      group_ordering, expanded_strain_ase_list, flatten_list)
+
+from pymatgen.io import ase as pgase
+
+ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
+pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 np.random.seed(seed=42)
 
@@ -275,11 +271,6 @@ class dft_job_array():
     def pre_steps(self, **kwargs):
         if 'strain_test' in kwargs.keys():
             self.strains_test = kwargs['strain_test']
-        
-        if 'opt_run' in kwargs.keys():
-            self.opt_run = kwargs['opt_run']
-        else:
-            self.opt_run = False
 
         if 'elastic' in kwargs.keys():
             self.elastic = kwargs['elastic']
@@ -491,6 +482,7 @@ class dft_job_array():
                             self.dict_steps[
                                 job_ind[0], job_ind[1]] = copy.deepcopy(
                                     steps_b)
+
                 
                 #  OUTER 1: only elastic info has to be added here
                 elif n_outer == 1:
@@ -847,21 +839,25 @@ class dft_job_array():
                     if jobs[i].status == 'warning': 
                         self.running_PLOT[i] = np.array([-0.5, -0.5])
                         try:
-                            self.dft_steps_RES[job_ind[0], job_ind[1]][n_outer].append(self.get_dft_results_pyiron(jobs[i]))
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append(
+                                    self.get_dft_results_pyiron(jobs[i]))
                             if [job_ind[1],job_ind[0]] not in self.WARN_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('green')
 
                             print('pass WARN')
                             self.print_cut()
-                            self.steps_statuses[job_ind[0],job_ind[1]][n_outer].append('pass WARN')
+                            self.steps_statuses[job_ind[0], job_ind[1]][
+                                n_outer].append('pass WARN')
 
                         except Exception as e:
                             print(e)
-                            self.dft_steps_RES[job_ind[0],job_ind[1]][n_outer].append('error')
+                            self.dft_steps_RES[job_ind[0], job_ind[1]][
+                                n_outer].append('error')
 
-                            if [job_ind[1],job_ind[0]] not in self.NOTC_grid:
-                                self.NOTC_grid.append([job_ind[1],job_ind[0]])
+                            if [job_ind[1], job_ind[0]] not in self.NOTC_grid:
+                                self.NOTC_grid.append([job_ind[1], job_ind[0]])
                                 self.NOTC_color.append('red')
 
                             print('error WARN: ', e)
