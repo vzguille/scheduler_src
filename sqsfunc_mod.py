@@ -103,16 +103,17 @@ def fix_ase(ase_clean):
 
 def fix_shuffle(matr):
     '''FIX matrix shuffle to be the number with the lesser magnitude'''
-    ni,nj= matr.shape
-    for i in range(ni):
-        for j in range(nj):
-            #print(abs(matr[i,j]-1))
-            if abs(matr[i,j]-1)< matr[i,j]:
-                matr[i,j]= matr[i,j]-1
-            else:
-                continue
-                
-    return matr
+    matr = matr.copy()
+    if len(matr.shape)==2:
+        ni,nj= matr.shape
+        for i in range(ni):
+            for j in range(nj):
+                if 1 - abs(matr[i,j]) < abs(matr[i,j]):
+                    matr[i,j]= matr[i,j]%1
+                else:
+                    continue
+
+        return matr
 
 def ase_to_rndstr(ase_cell,file_name=''):
     '''from ase structure to writing into a rndstr file!'''
@@ -1060,11 +1061,19 @@ def best_sqs(ct):
 
 
 def get_abc_abg_DEG(cell):
-    a,b,c=np.linalg.norm(cell[0]),np.linalg.norm(cell[1]),np.linalg.norm(cell[2])
-    return a,b,c,\
-        np.rad2deg(np.arccos(np.dot(cell[1],cell[2])/b*c)),\
-        np.rad2deg(np.arccos(np.dot(cell[0],cell[2])/a*c)),\
-        np.rad2deg(np.arccos(np.dot(cell[0],cell[1])/a*b))
+    a, b, c = np.linalg.norm(cell[0]), \
+        np.linalg.norm(cell[1]), np.linalg.norm(cell[2])
+    an, bn, cn = cell[0]/np.linalg.norm(cell[0]), \
+        cell[1]/np.linalg.norm(cell[1]), cell[2]/np.linalg.norm(cell[2])
+    return a, b, c, \
+        np.rad2deg(np.arccos(
+            np.dot(bn, cn)/np.linalg.norm(bn)*np.linalg.norm(cn))), \
+        np.rad2deg(np.arccos(
+            np.dot(an, cn)/np.linalg.norm(an)*np.linalg.norm(cn))), \
+        np.rad2deg(np.arccos(
+            np.dot(an, bn)/np.linalg.norm(an)*np.linalg.norm(bn)))
+
+        
 def get_abc_abg_RAD(cell):
     a,b,c=np.linalg.norm(cell[0]),np.linalg.norm(cell[1]),np.linalg.norm(cell[2])
     return a,b,c,\
@@ -1101,7 +1110,7 @@ def get_normal_from_miller(hkl,cell):
 
 def fix_shuffle(matr):
     '''FIX matrix shuffle to be the number with the lesser magnitude'''
-    
+    matr = matr.copy()
     if len(matr.shape)==2:
         ni,nj= matr.shape
         for i in range(ni):
