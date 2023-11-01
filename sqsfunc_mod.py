@@ -109,11 +109,15 @@ def fix_shuffle(matr):
         for i in range(ni):
             for j in range(nj):
                 if 1 - abs(matr[i,j]) < abs(matr[i,j]):
-                    matr[i,j]= matr[i,j]%1
+                    if matr[i,j] < 0.0:
+                        matr[i,j]= matr[i,j]%1
+                    else:
+                        matr[i,j]= matr[i,j] - 1.0
                 else:
                     continue
 
         return matr
+
 
 def ase_to_rndstr(ase_cell,file_name=''):
     '''from ase structure to writing into a rndstr file!'''
