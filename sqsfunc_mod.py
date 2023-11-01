@@ -1119,24 +1119,15 @@ def fix_shuffle(matr):
         ni,nj= matr.shape
         for i in range(ni):
             for j in range(nj):
-                if abs(matr[i,j]-1)< abs(matr[i,j]):
-                    matr[i,j]= matr[i,j]-1
+                if 1 - abs(matr[i,j]) < abs(matr[i,j]):
+                    if matr[i,j] < 0.0:
+                        matr[i,j]= matr[i,j]%1
+                    else:
+                        matr[i,j]= matr[i,j] - 1.0
                 else:
                     continue
 
         return matr
-    else:
-        nj= matr.shape[0]
-        for j in range(nj):
-            if abs(matr[j]-1)< abs(matr[j]):
-                matr[j]= matr[j]-1
-            else:
-                continue
-
-        return matr
-
-
-
 
 def get_index_trans(SC_pos,PC_sca_pos,PC_cell):
     index_trans = []
