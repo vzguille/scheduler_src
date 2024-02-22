@@ -433,7 +433,8 @@ def _relax_blank(job, dic):
 
             
     if '-INCAR-ISPIN' in dic.keys():
-        if dic['-INCAR-ISPIN'] == 1 or dic['-INCAR-ISPIN'] == 2:
+        if dic['-INCAR-ISPIN'] == 2:
+            # if 'Fe',' Ni' in job.structure set ISPIN 1 and break
             obj_magmoms = CollinearMagneticStructureAnalyzer(ase_to_pmg(job.structure),
                                                             'replace_all')
             job.structure.set_initial_magnetic_moments(
