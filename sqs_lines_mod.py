@@ -19,6 +19,20 @@ def read_atat_rndstr(f_n):
         buf = in_file.read()
         buf = buf.split('\n')
     atoms = [i.split(' ')[3:] for i in buf[6:]]
+    pattern = []
+    count_subl = 0
+    subl_num = 0
+    for i in atoms:
+
+        if len(i) == 0:
+            if count_subl != 0:
+                pattern.extend([subl_num]*count_subl)
+                count_subl = 0
+                subl_num += 1
+        else:
+            count_subl += 1
+    if count_subl != 0:
+        pattern.extend([subl_num]*count_subl)
     long_atoms = [i for i in atoms if len(i) > 0]
     
     l_v = [i.split() for i in buf[:6]]
@@ -29,7 +43,7 @@ def read_atat_rndstr(f_n):
     
     v1 = l_v[:3]
     v2 = l_v[3:6]
-    return v1, v2, b_v, long_atoms
+    return v1, v2, b_v, long_atoms, pattern
 
 
 class rndstr_structure:
@@ -43,7 +57,8 @@ class rndstr_structure:
         with open(self.file_N, 'r') as f:
             self.rndstr_FC = f.read()
         self.scaling, self.lattice_vectors_scaled, self.basis_vectors_scaled, \
-            self.atom_strings_subl = read_atat_rndstr(self.file_N)
+            self.atom_strings_subl, self.pattern_subl = read_atat_rndstr(
+                self.file_N)
             
         self.num_atoms = len(self.atom_strings_subl)
         
@@ -51,7 +66,7 @@ class rndstr_structure:
                                          self.scaling)        
         self.basis_vectors = np.matmul(self.basis_vectors_scaled,
                                        self.scaling)
-    
+
     def differentiate_subl(self):
 
         atoms_of_site = [[] for i in range(self.num_atoms)]
@@ -78,33 +93,18 @@ class rndstr_structure:
         self.num_diff_atoms = num_diff_atoms
         self.atom_per_site = atoms_of_site
         self.comps_per_site = comps_of_site
-        self.df_full = self.rnds_add_unique(self.df_comp)
+        self.df_full = self.rnds_add_unique()
 
-    def rnds_add_unique(self, df_i):
-        df = df_i.copy()
-        count_unique = -1
-        
-        df['sublattice_filling'] = self.atom_strings_subl
-        
-        df['unique'] = ['Y']*self.num_atoms
-        for i in range(len(df)):
-            if df.loc[i, 'unique'] == 'Y':
-                count_unique = count_unique+1
-                if (df.loc[i, 'Ni']+df.loc[i, 'Cu']) > (
-                        df.loc[i, 'Ti']+df.loc[i, 'Hf']):
-                    unique_label = 'Ni'
-                else:
-                    unique_label = 'Ti'
-                for j in range(i+1, len(df)):
-                    # hardcoded to our system
-                    if np.array_equal(df.loc[i, self.all_atoms].astype(float), 
-                                      df.loc[j, self.all_atoms].astype(float)):
-                        df.loc[j, 'unique'] = unique_label  # count_unique
-                df.loc[i, 'unique'] = unique_label  # count_unique
-        self.count_unique_subl = count_unique
-        
+    def rnds_add_unique(self):
+        df = self.df_comp.copy()
+        df['subl'] = None
+        df['unique'] = None
+        for i, _ in df.iterrows():
+            
+            df.at[i, 'subl'] = 'SUBL_{:02d}'.format(self.pattern_subl[i])
+            df.at[i, 'unique'] = self.pattern_subl[i]  
         return df
-    
+        
     def ase(self):
         self.ase_struct = create_ase(self.lattice_vectors, 
                                      self.basis_vectors,

@@ -34,20 +34,19 @@ def elements_from_subl(subl_list):
     flattened_list.sort()
     return flattened_list
 
-def get_unique_list_of_lists(SUBL,ELEMENTS):
-    
-    
-    sizes= []
-    inds_ELE=[]
+
+def get_unique_list_of_lists(SUBL, ELEMENTS):
+
+    sizes = []
+    inds_ELE = []
     
     unique_list = list(set(tuple(sublist) for sublist in SUBL))
     unique_list = [list(i) for i in unique_list]
     for i in unique_list:
         inds_ELE.append([ELEMENTS.index(j) for j in i])
-        sizes.append(len(i))
+        sizes.append(sum(1 for sublist in SUBL if sublist == i))
     
     return unique_list, inds_ELE, sizes
-
 
 
 '''dataframes functions'''
@@ -103,16 +102,21 @@ def fix_ase(ase_clean):
 
 def fix_shuffle(matr):
     '''FIX matrix shuffle to be the number with the lesser magnitude'''
-    ni,nj= matr.shape
-    for i in range(ni):
-        for j in range(nj):
-            #print(abs(matr[i,j]-1))
-            if abs(matr[i,j]-1)< matr[i,j]:
-                matr[i,j]= matr[i,j]-1
-            else:
-                continue
-                
-    return matr
+    matr = matr.copy()
+    if len(matr.shape)==2:
+        ni,nj= matr.shape
+        for i in range(ni):
+            for j in range(nj):
+                if 1 - abs(matr[i,j]) < abs(matr[i,j]):
+                    if matr[i,j] < 0.0:
+                        matr[i,j]= matr[i,j]%1
+                    else:
+                        matr[i,j]= matr[i,j] - 1.0
+                else:
+                    continue
+
+        return matr
+
 
 def ase_to_rndstr(ase_cell,file_name=''):
     '''from ase structure to writing into a rndstr file!'''
@@ -360,57 +364,35 @@ def SQS_size(around_number, dic, latt_option, ull):
     
     return np.arange(a_n-limi,a_n+limi+1, DIV)[ii], final_vec[ii],score[ii]
 
-def SQS_size_from_ELE_LIST(around_number, ELE_SUBL, ELEMENTS, comp, range_num,MIN=0):
+def SQS_size_from_ELE_LIST(around_number, ELE_SUBL, ELEMENTS, comp, range_num, MIN=0):
     '''creates an SQS preferable size based on the sublattice 
     and on the composition'''
-    score=[]
-    final_vec=[]
-    a_n=around_number
+    score = []
+    final_vec = []
+    a_n = around_number
     
     DIV = len(ELE_SUBL)
     
-    range_len=DIV*range_num
-    if a_n%DIV> ZERO:
-        a_n=np.round(a_n/DIV,0)*DIV
+    range_len = DIV*range_num
+    if a_n % DIV > ZERO:
+        a_n = np.round(a_n/DIV, 0)*DIV
     
-    comp_per_subl =[]
-    
-    
-    
-    unq_list, inds_ELE, unq_siz = get_unique_list_of_lists(ELE_SUBL,ELEMENTS)
-    
-    #print(ELEMENTS)
-    #print(unq_list,inds_ELE, unq_siz)
-    
-    
-    
-    
-    
+    unq_list, inds_ELE, unq_siz = get_unique_list_of_lists(ELE_SUBL, ELEMENTS)
         
     up_comp = comp.copy()
-    org_values=np.zeros((len(unq_list),len(ELEMENTS)),dtype=float)
-
+    org_values = np.zeros((len(unq_list), len(ELEMENTS)),dtype=float)
+    
+#     print(comp)
+    
     for si in np.unique(unq_siz):
-        for ni,i in enumerate(unq_list): 
+        for ni, i in enumerate(unq_list): 
             if si == unq_siz[ni]:
-                new = np.zeros(comp.shape,dtype=float)
-                #print(i)
-                #print([1.0/unq_siz[ni]]*unq_siz[ni])
-
-                new[inds_ELE[ni]]=[1.0/unq_siz[ni]]*unq_siz[ni]
-                comp_subl=new*(unq_siz[ni]/np.sum(unq_siz))
-
-                prov_comp=up_comp-comp_subl
-                #print(up_comp)
-                #print(any( up_comp < -ZERO))
-                if any( prov_comp < -ZERO):
-                    ### fil out unevenly by alphabetic order
+                new = np.zeros(comp.shape, dtype=float)
+                new[inds_ELE[ni]] = [1.0/len(i)]*len(i)
+                comp_subl = new*(unq_siz[ni]/np.sum(unq_siz))
+                prov_comp = up_comp-comp_subl
+                if any(prov_comp < -ZERO):
                     ret_subl = np.zeros(up_comp.shape)
-
-                    #print('HERE')
-                    #print(inds_ELE[ni])
-                    #print(comp_subl)
-                    #print(up_comp)
                     sub_tot_frac = np.sum(comp_subl)
                     for nee in inds_ELE[ni]:
                         if up_comp[nee] > sub_tot_frac:
@@ -419,54 +401,39 @@ def SQS_size_from_ELE_LIST(around_number, ELE_SUBL, ELEMENTS, comp, range_num,MI
                         else:
                             ret_subl[nee] = up_comp[nee]
                         comp_subl = ret_subl
-                        up_comp=up_comp-comp_subl
+                        up_comp = up_comp-comp_subl
 
                 else:
-                    up_comp=prov_comp
+                    up_comp = prov_comp
 
-                org_values[ni]=comp_subl
+                org_values[ni] = comp_subl
             else:
                 pass
-
-    #print(org_values) ### fraction values
     
-    if abs(np.sum(org_values)-1.0)>ZERO:
+    if abs(np.sum(org_values)-1.0) > ZERO:
         print('composition not apt for this sublattice arrangement')
         return
     
-    for i_n in np.arange(a_n-range_len,a_n+range_len+1, DIV):
-        #first_values=np.zeros((len(unq_list),len(ELEMENTS)),dtype=float)
+    for i_n in np.arange(a_n-range_len, a_n+range_len+1, DIV):
+        first_values = org_values*i_n
         
-        first_values=org_values*i_n
-        
-        #print(first_values)
-        
-        first_values=first_values.round(0)
-        #print(first_values)
+        first_values = first_values.round(0)
 
-
-        dif=(first_values/i_n).sum(axis=0)-comp
-        #print('dif:',(first_values/i_n).sum(axis=0),comp)
+        dif = (first_values/i_n).sum(axis=0)-comp
+        
         score.append(abs(dif).sum())
         
-        #print(score)
-        
-        #####hotfix for int_values rounding to numbers which sum to a different number (either +1, or -1)
-        
         if abs(first_values.sum()-i_n) > ZERO:
-            score[-1]=100000
+            score[-1] = 100000
         if i_n < MIN:
-            score[-1]=100000
-            
-        
-            
-        
-        
+            score[-1] = 100000
+                    
         final_vec.append(first_values)
         
-    ii=np.argmin(score)
+    ii = np.argmin(score)
     
-    return np.arange(a_n-range_len,a_n+range_len+1, DIV)[ii], final_vec[ii],score[ii]
+    return np.arange(a_n-range_len, 
+                     a_n+range_len+1, DIV)[ii], final_vec[ii], score[ii]
 
 
 def create_rndst(size, rndstr_blnk, elements, file_name=''):
@@ -497,26 +464,26 @@ def create_rndst(size, rndstr_blnk, elements, file_name=''):
             
     return r_replace
 
+
 def create_rndst_subl(size, rndstr_blnk, elements, subl, file_name=''):
     ''' create rndstr for SQS creation'''
-    _ , __ , unq_siz = get_unique_list_of_lists(subl, elements_from_subl(subl))
-    rb=rndstr_blnk
-    ac=(size[1]/size[0]).round(8)
+    _, __, unq_siz = get_unique_list_of_lists(subl, elements_from_subl(subl))
+    rb = rndstr_blnk
+    ac = (size[1]/size[0]).round(8)
     ac = ac * np.array(np.sum(unq_siz)/unq_siz)[:, np.newaxis]
-    r_replace=rb[:]
+
+    r_replace = rb[:]
     for row in range(ac.shape[0]):
-        hili=''
-        for j,jj in enumerate(elements):
-            #print(j,jj)
-            if ac[row,j] < ZERO:
+        hili = ''
+        for j, jj in enumerate(elements):
+            
+            if ac[row, j] < ZERO:
                 pass
             else:
-                hili=hili+jj+'='+str(ac[row,j])+', '
+                hili = hili+jj+'='+str(ac[row, j])+', '
         hili = hili[:-2]
-        
 
-        r_replace=r_replace.replace('SUBL_'+'{:02d}'.format(row),hili)
-    
+        r_replace = r_replace.replace('SUBL_'+'{:02d}'.format(row), hili)
     
     if file_name != '':
         with open(file_name, "w") as out_file:
@@ -1060,11 +1027,19 @@ def best_sqs(ct):
 
 
 def get_abc_abg_DEG(cell):
-    a,b,c=np.linalg.norm(cell[0]),np.linalg.norm(cell[1]),np.linalg.norm(cell[2])
-    return a,b,c,\
-        np.rad2deg(np.arccos(np.dot(cell[1],cell[2])/b*c)),\
-        np.rad2deg(np.arccos(np.dot(cell[0],cell[2])/a*c)),\
-        np.rad2deg(np.arccos(np.dot(cell[0],cell[1])/a*b))
+    a, b, c = np.linalg.norm(cell[0]), \
+        np.linalg.norm(cell[1]), np.linalg.norm(cell[2])
+    an, bn, cn = cell[0]/np.linalg.norm(cell[0]), \
+        cell[1]/np.linalg.norm(cell[1]), cell[2]/np.linalg.norm(cell[2])
+    return a, b, c, \
+        np.rad2deg(np.arccos(
+            np.dot(bn, cn)/np.linalg.norm(bn)*np.linalg.norm(cn))), \
+        np.rad2deg(np.arccos(
+            np.dot(an, cn)/np.linalg.norm(an)*np.linalg.norm(cn))), \
+        np.rad2deg(np.arccos(
+            np.dot(an, bn)/np.linalg.norm(an)*np.linalg.norm(bn)))
+
+        
 def get_abc_abg_RAD(cell):
     a,b,c=np.linalg.norm(cell[0]),np.linalg.norm(cell[1]),np.linalg.norm(cell[2])
     return a,b,c,\
@@ -1101,29 +1076,20 @@ def get_normal_from_miller(hkl,cell):
 
 def fix_shuffle(matr):
     '''FIX matrix shuffle to be the number with the lesser magnitude'''
-    
+    matr = matr.copy()
     if len(matr.shape)==2:
         ni,nj= matr.shape
         for i in range(ni):
             for j in range(nj):
-                if abs(matr[i,j]-1)< abs(matr[i,j]):
-                    matr[i,j]= matr[i,j]-1
+                if 1 - abs(matr[i,j]) < abs(matr[i,j]):
+                    if matr[i,j] < 0.0:
+                        matr[i,j]= matr[i,j]%1
+                    else:
+                        matr[i,j]= matr[i,j] - 1.0
                 else:
                     continue
 
         return matr
-    else:
-        nj= matr.shape[0]
-        for j in range(nj):
-            if abs(matr[j]-1)< abs(matr[j]):
-                matr[j]= matr[j]-1
-            else:
-                continue
-
-        return matr
-
-
-
 
 def get_index_trans(SC_pos,PC_sca_pos,PC_cell):
     index_trans = []
