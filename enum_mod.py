@@ -322,10 +322,10 @@ class structures_pool:
     
     def generate_structures(self, N_lower, N_higher):
         self._gen_icet(N_lower)
-        self._gen_higher(np.arange(N_lower + 1, N_higher))
+        self._gen_higher(np.arange(N_lower + 1, N_higher + 1))
         self.sizes_ord = [len(i) for i in self.structures_ord]
         self.all_sizes = self.sizes + self.sizes_ord
-        self.all_structures = self .sizes + self.structures_ord
+        self.all_structures = self.structures + self.structures_ord
 
     def save_structures(self, file_path):
         with open(file_path, 'wb') as file:

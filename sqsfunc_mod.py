@@ -29,10 +29,12 @@ atomic_radii = {
 }
 
 
-def elements_from_subl(subl_list):
-    flattened_list = list(set(list(chain(*subl_list))))
-    flattened_list.sort()
-    return flattened_list
+def elements_from_subl(ele_subl):
+    test_list = [item for row in ele_subl for item in row]
+    res = []
+    [res.append(str(x)) for x in test_list if str(x) not in res]
+    print('res', res)
+    return sorted(res)
 
 
 def get_unique_list_of_lists(SUBL, ELEMENTS):
