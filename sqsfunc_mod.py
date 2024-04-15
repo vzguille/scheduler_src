@@ -1,4 +1,4 @@
-from itertools import chain
+from itertools import chain, combinations
 import numpy as np
 import pandas as pd
 import json
@@ -27,6 +27,204 @@ vesta_colors = {
 atomic_radii = {
  "H": 37, "He": 32, "Li": 134, "Be": 90, "B": 82, "C": 77, "N": 75, "O": 73, "F": 71, "Ne": 69, "Na": 154, "Mg": 130, "Al": 118, "Si": 111, "P": 106, "S": 102, "Cl": 99, "Ar": 97, "K": 196, "Ca": 174, "Hf": 150, "Sc": 144, "Ti": 180, "V": 125, "Cr": 127, "Mn": 139, "Fe": 125, "Co": 126, "Ni": 121, "Cu": 138, "Zn": 131, "Ga": 126, "Ge": 122, "As": 119, "Se": 116, "Br": 114, "Kr": 110, "Rb": 211, "Sr": 192, "Y": 162, "Zr": 148, "Nb": 137, "Mo": 145, "Tc": 156, "Ru": 126, "Rh": 135, "Pd": 131, "Ag": 153, "Cd": 148, "In": 144, "Sn": 141, "Sb": 138, "Te": 135, "I": 133, "Xe": 130, "Cs": 225, "Ba": 198, "La": 169, "Ce": 154, "Pr": 247, "Nd": 206, "Pm": 205, "Sm": 238, "Eu": 231, "Gd": 233, "Tb": 225, "Dy": 228, "Ho": 226, "Er": 226, "Tm": 222, "Yb": 222, "Lu": 217,
 }
+
+###### ADDED FOR SAMPLING #######
+
+def create_sampling(ele_subl, elements, n_comps = 4, lower = 2, upper = 4):
+    sublattices, element_indices, sublattices_size = get_unique_list_of_lists(ele_subl,elements)
+    
+    if len(sublattices) == 1:
+        order_elements = sublattices[0]
+        order_elements = sorted(order_elements)
+        final_comp = _create_sampling_active_elements(order_elements, n_comps = n_comps, lower = lower, upper = upper)
+    else:
+        sublattice_mulplicity = [len(i) for i in sublattices]
+        if np.sum([i > 1 for i in sublattice_mulplicity]) > 1:
+            raise Exception('No systems with more than one active sublattice')
+        active_sublattice_index = np.where(np.array(sublattice_mulplicity) > 1)[0][0]
+        sampling_elements = sublattices[active_sublattice_index]
+        
+        active_comp = _create_sampling_active_elements(sampling_elements, n_comps = n_comps, lower = lower, upper = upper)
+        weights_sublattices = sublattices_size/np.sum(sublattices_size)
+    
+        sublattice_comps = []
+        
+        
+        for i, sublattice_i in enumerate(sublattices):
+            
+            if i == active_sublattice_index:
+                sublattice_comps.append(active_comp*weights_sublattices[i])
+            else:
+                sublattice_comps.append((np.ones(active_comp.shape[0])*(weights_sublattices[i])).reshape(-1, 1))
+        
+        final_comp = np.concatenate(sublattice_comps, axis = 1)
+
+        order_elements = [item for row in sublattices for item in row]
+        order_elements, final_comp = _get_duplicates(order_elements, final_comp)
+    
+    return order_elements, final_comp
+
+
+
+def _get_duplicates(as_created, comp):
+    unique = list(set(as_created))
+    unique = sorted(unique)
+    arrs = []
+    for i in unique:
+        arrs.append( comp[:, np.where(np.array(as_created) == i)[0]].sum(axis = 1) )
+        # print(comp[:, np.where(np.array(order_elements) == i)[0]].sum(axis = 1))
+    return unique, np.array(arrs).T
+
+def _create_sampling_active_elements(sampling_elements, n_comps = 4, lower = 2, upper = 4):
+    sys_d = len(sampling_elements)
+    # n_comps = 4 # number of compositions per 100 at%
+    # lower = 2 # dimension of lowest subsystem
+    # upper = 4 # dimension of largest subsystem, can't be larger than n_comps
+    final_comp=np.empty([0,sys_d], float)
+    
+    for i in range(lower,upper+1):
+        # creation of compositions datapoints 
+        # per size of subsystem
+        comps = []
+        indices = np.ndindex(*[n_comps-i for i in range(i)])
+        j = 0
+        for index in indices:
+            j += 1
+            comp = np.array(index)+1
+            if (np.sum(comp)==(n_comps)):
+                comps.append(comp)
+                toc = time.time()
+        comps = np.vstack(comps)/(n_comps)
+        # creation of subsystems per size of subsystem
+        # (combinations of subsystems of same size in 
+        # in the 7-atom system
+        for comb in combinations(range(sys_d),i):
+            dummy=np.zeros([comps.shape[0],sys_d],dtype=float)
+            dummy[:,comb]=comps
+            final_comp=np.vstack((final_comp, dummy))
+
+        
+        
+    
+    
+    return final_comp
+
+
+
+##### Added diborides ####
+
+class mini_structures_pool:
+    
+    def __init__(self, system_elements):
+        self.system_elements = system_elements
+        
+        
+        self.structures = []
+        self.sizes = []
+        
+    def _create_prim(self,  system_lat, lattice_vals, extra_sites = None):
+        if system_lat == 'FCC' or system_lat == 'BCC':
+            self.a0 = lattice_vals['a0']
+        if system_lat == 'HCP' or system_lat == 'boride_191':
+            self.a0 = lattice_vals['a0']
+            self.c0 = lattice_vals['c/a'] * self.a0
+            
+        if system_lat == 'FCC' and extra_sites == None:
+            a0 = self.a0
+            self.prim = Atoms(self.system_elements[0],
+                 scaled_positions=[
+                     [0.0,   0.0,   0.0],
+                 ],
+                 cell = [[a0/2,a0/2,0],
+                         [0,a0/2,a0/2],
+                         [a0/2,0,a0/2],
+                        ],
+                pbc=[1,1,1]
+                        )
+            
+        if system_lat == 'BCC' and extra_sites == None:
+            a0 = self.a0
+            self.prim = Atoms(self.system_elements[0], 
+                scaled_positions=[
+                 [0.0,   0.0,   0.0],
+                ],
+                cell = [[a0/2,a0/2,-a0/2],
+                     [-a0/2,a0/2,a0/2],
+                     [a0/2,-a0/2,a0/2],
+                    ],
+                pbc=[1,1,1])
+        
+        if system_lat == 'HCP' and extra_sites == None:
+            a0 = self.a0
+            c0 = self.c0
+            self.prim = Atoms(self.system_elements[0]*2,
+                scaled_positions=[
+                    [1/3, 2/3, 1/4],    
+                    [2/3, 1/3, 3/4]
+                ],
+                cell = [[np.abs(a0*np.cos(120*np.pi/180)), -np.abs(a0*np.sin(120*np.pi/180)), 0.0],
+                     [np.abs(a0*np.cos(120*np.pi/180)), np.abs(a0*np.sin(120*np.pi/180)), 0.0],
+                     [0.0,0.0,c0],
+                    ],
+                pbc=[1,1,1])
+            
+            
+        if system_lat == 'boride_191' and extra_sites == None:
+            a0 = self.a0
+            c0 = self.c0
+            self.prim = Atoms(self.system_elements[0]+'B'*2,
+                scaled_positions=[
+                    [0.0, 0.0, 0.0],
+                    [1/3, 2/3, 1/2],
+                    [2/3, 1/3, 1/2]
+                ],
+                cell = [[np.abs(a0*np.cos(120*np.pi/180)), -np.abs(a0*np.sin(120*np.pi/180)), 0.0],
+                     [np.abs(a0*np.cos(120*np.pi/180)), np.abs(a0*np.sin(120*np.pi/180)), 0.0],
+                     [0.0,0.0,c0],
+                    ],
+                pbc=[1,1,1])
+        print(self.prim)
+
+
+
+def arrays_equal_with_tolerance(arr1, arr2, tol = 1E-8):
+    if len(arr1) != len(arr2):
+        return False
+    else:
+        for i, _ in enumerate(arr1):
+            a1 = np.sort(arr1[i])
+            a2 = np.sort(arr2[i])
+            if not np.allclose(a1, a2, atol=tol):
+                return False
+    return True
+
+
+def add_sym(df):
+    non_sym = []
+    df_out = df.copy()
+    df_out ['sym'] = None
+    
+    for ii, i_row in df.iterrows():
+        unique = True
+        if ii in non_sym:
+            continue
+        this_row = i_row['sublattice'].copy()
+        for jj, j_row in df[ii+1:].iterrows():
+            if arrays_equal_with_tolerance(this_row, j_row['sublattice'].copy() ):
+                
+                non_sym.append(jj)
+                df_out.at[jj, 'sym'] = ii
+        df_out.at[ii, 'sym'] = 'Y'
+    return df_out
+
+
+##############
+
+
+
+
+
+
 
 
 def elements_from_subl(ele_subl):
@@ -1331,6 +1529,7 @@ def plot_mil_BC_SC_dis_plus(BC,SC,MIL,PLUS=True):
         ax.set_ylim(yls+added[1])
         
     plt.show()
+
 
 
 
