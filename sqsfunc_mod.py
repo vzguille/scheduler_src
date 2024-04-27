@@ -231,7 +231,7 @@ def elements_from_subl(ele_subl):
     test_list = [item for row in ele_subl for item in row]
     res = []
     [res.append(str(x)) for x in test_list if str(x) not in res]
-    print('res', res)
+    # print('res', res)
     return sorted(res)
 
 
@@ -758,7 +758,6 @@ class SLURM_job:
     
     def __init__(self,dir_name,updated='slurm_u.job'):
         
-        
         self.user=self.get_user()
         
         
@@ -832,18 +831,18 @@ class SLURM_job:
             self.jobo=self.read_file(self.working_dir+'/job.o'+str(self.ID))
             self.jobe=self.read_file(self.working_dir+'/job.e'+str(self.ID))
             self.jobt=self.read_file(self.working_dir+'/job.t'+str(self.ID))
-            self.both_prints('job output:')
-            self.both_prints(self.jobo)
-            self.both_prints('job error:')
-            self.both_prints(self.jobe)
-            self.both_prints('job text:')
-            self.both_prints(self.jobt)
+            # self.both_prints('job output:')
+            # self.both_prints(self.jobo)
+            # self.both_prints('job error:')
+            # self.both_prints(self.jobe)
+            # self.both_prints('job text:')
+            # self.both_prints(self.jobt)
             
             
             self.both_prints('This job has finished already')
             
             
-            #self.dump_object()
+            # self.dump_object()
             #self.write_log('This job has finished already')
         else:
             
@@ -902,16 +901,15 @@ class SLURM_job:
         self.write_log('SLURM FILE (ONLY {for now}) loaded from '+self.notebook_dir+'/'
                               +self.original_SLURMfile+' at '
                               +self.datetime())
-        print(s_file)
+        # print(s_file)
         
         f= open(self.original_SLURMfile,'r')
         self.SLURMfile_as_string=f.read()
             
-        print('######file#####\n',self.SLURMfile_as_string)
+        # print('######file#####\n',self.SLURMfile_as_string)
         
         
         self.dump_object()
-        
         
     def read_file(self,file):
         f=open(file,'r')
@@ -922,7 +920,7 @@ class SLURM_job:
         
         
     def dump_SLURMfile(self):
-        print(self.SLURMfile_as_string)
+        # print(self.SLURMfile_as_string)
         self.write_log('SLURM file written to: '+self.working_dir+'/'+self.updated_SLURMfile)
         with open(self.updated_SLURMfile,'w') as f:
             f.write(self.SLURMfile_as_string)
@@ -942,7 +940,7 @@ class SLURM_job:
                 self.both_prints('Job has likely finished ######')
                 
         else:
-            self.both_prints('no attribute so far we proceed to run a first try')
+            self.both_prints('no attribute so far we proceed to run a first try...')
             
             self.send_job()
             self.dump_object()

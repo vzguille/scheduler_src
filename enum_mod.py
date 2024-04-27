@@ -18,8 +18,6 @@ import pickle
 
 import time
 
-
-
 from pymatgen.io import ase as pg_ase
 
 ase_to_pmg = pg_ase.AseAtomsAdaptor.get_structure
@@ -240,7 +238,6 @@ class structures_pool:
         RMs = [i.rotation_matrix 
                for i in SpacegroupAnalyzer(prim_pmg).
                get_symmetry_operations(cartesian=True)]
-        save_ases = []
         
         for n in Ns:
             hs, ss = return_HNF_n_SNF(n, prim_cell, RMs)
@@ -248,61 +245,72 @@ class structures_pool:
             lower = 2
             upper = 6
             sys_d = len(ELE_LIST)
-            final_comp=np.empty([0,len(ELE_LIST)], float)
+            final_comp = np.empty([0, len(ELE_LIST)], float)
 
-            for i in range(lower,upper+1):
+            for i in range(lower, min(n, upper+1)):
+                # print('i, n', i, n)
                 comps = []
                 indices = np.ndindex(*[n-i for i in range(i)])
-                j = 0
 
+                j = 0
+                '''very inefficient index generation, let's just create the 
+                unique integer combinartions that sum up to n and generate the
+                symmetric compositions'''
                 for index in indices:
+                    
                     j += 1
                     comp = np.array(index)+1
-                    if (np.sum(comp)==(n)):
+                    if (np.sum(comp) == (n)):
                         comps.append(comp)
+                # print('comps', comps)
+                if not comps:
+                    continue
                 comps = np.vstack(comps)
-                for comb in combinations(range(sys_d),i):
-                    dummy=np.zeros([comps.shape[0],sys_d],dtype=int)
-                    dummy[:, comb]=comps
-                    final_comp=np.vstack((final_comp,dummy))
-
+                for comb in combinations(range(sys_d), i):
+                    dummy = np.zeros([comps.shape[0], sys_d], dtype=int)
+                    dummy[:, comb] = comps
+                    final_comp = np.vstack((final_comp, dummy))
 
             final_comp = final_comp.astype(int)
-            # final_comp shows the number of atoms each element shows using this size of cell and 
-            # number of constituents while only choosing a lower --> upper  number of constituents
-            # at the same time, we allow lower = 2 to obtain higher size binaries
-#             print(final_comp)
-#             print(final_comp.shape)
+            
+            '''final_comp shows the number of atoms each element shows 
+                using this size of cell while 
+                only choosing a lower --> upper  number of constituents
+                at the same time, we allow lower = 2 to obtain 
+                supercell size binaries (useful for Convex-Hull)'''
+            # print(final_comp)
+            # print(final_comp.shape)
+            # for i, ni in enumerate(final_comp):
+            #     print(i, ni)
+            
+            n_select = 10000
+            if final_comp.shape[0] > n_select:
+                final_comp = final_comp[
+                    np.random.choice(np.arange(len(final_comp)), n_select, 
+                                     replace=False)]
             starters = []
             for f in final_comp:
-                starter=[]
+                starter = []
                 for e, nE in enumerate(f):
-                    starter=starter+[e]*nE
+                    starter = starter+[e]*nE
                 starters.append(starter)
 
-#             print(len(starters))
-            n_select = 10000
-            if len(starters) < n_select:
-                mini_starters = starters
-            else:
-                mini_starters = np.array(starters)[
-                    np.random.choice(np.arange(len(starters)), n_select, replace=False)]
+            ases_per_size_n = []
+            '''ases_per_size_n is filled as follows: for each n, 
+            we have generated unique composition starters,
+            each starter we assign it to an hnf (they are shuffled 
+            {even if they don't need to} to add randomness)'''
 
+            for i_s, starter in enumerate(starters):
 
-            full_ases = []
-            full_clusters = []
-
-            for i_s, starter in enumerate(mini_starters):
-                pool_ases = []
-                pool_clusters = []
-                diags = find_combinations_target(n)
+                # diags = find_combinations_target(n) 
+                # SNE not working as intended
 
                 for i_h, h in enumerate(hs):
                     atoms_dummy = make_supercell(prim, h)
                     diff_structures = gen_only_starter(starter, 1)
                     diff_labels = [[
                         ELE_LIST[j] for j in i] for i in diff_structures]
-                    ases = []
 
                     for i in diff_labels:
 
@@ -312,11 +320,11 @@ class structures_pool:
                                 flatten([[j]+extra_atoms for j in i]))
                         else:
                             ite_ase.set_chemical_symbols(i)
-                        ases.append(ite_ase.copy())
-                        full_ases.append(ite_ase.copy())
+
+                        ases_per_size_n.append(ite_ase.copy())
                     np.random.seed(int(time.time() * 1e6) % (2**32 - 1))
-#             print(n, len(full_ases))
-            self.structures_ord.extend(full_ases)
+#             print(n, len(ases_per_size_n))
+            self.structures_ord.extend(ases_per_size_n)
         print('{} structures in {}s'.format(len(self.structures_ord), 
                                             time.time() - ti))
     
