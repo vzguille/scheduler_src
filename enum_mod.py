@@ -23,6 +23,7 @@ from pymatgen.io import ase as pg_ase
 ase_to_pmg = pg_ase.AseAtomsAdaptor.get_structure
 pmg_to_ase = pg_ase.AseAtomsAdaptor.get_atoms
 
+from grid_gen import get_integer_compositions
 
 def flatten(xss):
     return [x for xs in xss for x in xs]
@@ -225,7 +226,7 @@ class structures_pool:
         print('{} structures in {}s'.format(len(self.structures), 
               time.time() - ti))
         
-    def _gen_higher(self, Ns):
+    def _gen_higher(self, Ns, n_select = 10000):
         ti = time.time()
         self.structures_ord = []
         
@@ -243,53 +244,21 @@ class structures_pool:
             hs, ss = return_HNF_n_SNF(n, prim_cell, RMs)
 
             lower = 2
-            upper = 6
+            upper = 8
             sys_d = len(ELE_LIST)
-            final_comp = np.empty([0, len(ELE_LIST)], float)
-
-            for i in range(lower, min(n, upper+1)):
-                # print('i, n', i, n)
-                comps = []
-                indices = np.ndindex(*[n-i for i in range(i)])
-
-                j = 0
-                '''very inefficient index generation, let's just create the 
-                unique integer combinartions that sum up to n and generate the
-                symmetric compositions'''
-                for index in indices:
-                    
-                    j += 1
-                    comp = np.array(index)+1
-                    if (np.sum(comp) == (n)):
-                        comps.append(comp)
-                # print('comps', comps)
-                if not comps:
-                    continue
-                comps = np.vstack(comps)
-                for comb in combinations(range(sys_d), i):
-                    dummy = np.zeros([comps.shape[0], sys_d], dtype=int)
-                    dummy[:, comb] = comps
-                    final_comp = np.vstack((final_comp, dummy))
-
-            final_comp = final_comp.astype(int)
-            
-            '''final_comp shows the number of atoms each element shows 
+            integer_compositions = get_integer_compositions(n, sys_d, lower, upper)
+            '''integer_compositions is the number of atoms each element occupies 
                 using this size of cell while 
                 only choosing a lower --> upper  number of constituents
                 at the same time, we allow lower = 2 to obtain 
                 supercell size binaries (useful for Convex-Hull)'''
-            # print(final_comp)
-            # print(final_comp.shape)
-            # for i, ni in enumerate(final_comp):
-            #     print(i, ni)
             
-            n_select = 10000
-            if final_comp.shape[0] > n_select:
-                final_comp = final_comp[
-                    np.random.choice(np.arange(len(final_comp)), n_select, 
+            if integer_compositions.shape[0] > n_select:
+                integer_compositions = integer_compositions[
+                    np.random.choice(np.arange(len(integer_compositions)), n_select, 
                                      replace=False)]
             starters = []
-            for f in final_comp:
+            for f in integer_compositions:
                 starter = []
                 for e, nE in enumerate(f):
                     starter = starter+[e]*nE

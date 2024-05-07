@@ -16,11 +16,15 @@ ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
 pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
 
 
+
+
+
+
+
 class pyiron_line:
     
     def __init__(self, 
                  project_pyiron: str = 'testing_cons',
-                 opt_opt={'NUM_cores': 20},
                  **kwargs):
         
         self.project_STR = project_pyiron
@@ -30,16 +34,24 @@ class pyiron_line:
             return None
         else:
             self.PRE_NEEDED = True
-
-        self.NUM_cores = opt_opt['NUM_cores']
         
         self.dft_rores_HIS = []
         self.dft_rooster_HIS = []
         self.cur_rooster_HIS = []
         self.steps_HIS = []
         
+        if 'NUM_cores' in kwargs:
+            self.NUM_cores = kwargs['NUM_cores']
+        else:
+            self.NUM_cores = 20
+
         if 'extra' in kwargs:
             self.extra = kwargs['extra']
+
+        if 'vasp_chosen' in kwargs:
+            self.vasp_chosen = kwargs['vasp_chosen']
+        else:
+            self.vasp_chosen = 3
             
         if 'args_cons' in kwargs:
             self.args_cons = kwargs['args_cons']
@@ -70,6 +82,50 @@ class pyiron_line:
                                         'KPPA': 3000,
                                         '-INCAR-ISPIN': 1,
                                         }}
+
+    """
+    #### IMPORTANT handling of vasp command script
+    #### choose vasp5 or vasp6
+    vasps = ['vasp_5.4.4.default_grace',
+             'vasp_6.3.0.default_grace',
+             'vasp_6.3.2.default_grace',
+             'vasp_6.3.2.default_faster',
+             'vasp_6.3.2.default_faster2']
+    RV_DIR = '/scratch/group/arroyave_lab/guillermo.vazquez/pyiron_dirs/pyiron/resources/vasp/bin'
+
+    for filename in os.listdir(RV_DIR):
+        f = os.path.join(RV_DIR, filename)
+        # checking if it is a file
+        if os.path.isfile(f):
+            if f.endswith('.sh'):
+                os.remove(f)
+            
+
+
+    vasp_opt=vasps[3]
+    print('run_vasp'+vasp_opt.split('vasp')[1].split('default')[0]+'sh')
+    shutil.copy2(RV_DIR+'/'+vasp_opt,RV_DIR+'/'+'run_vasp'+vasp_opt.split('vasp')[1].split('default')[0]+'sh')
+
+
+    """
+    def _vasp_HPRC_set(self):
+        vasp_scripts = ['vasp_5.4.4.default_grace',
+         'vasp_6.3.0.default_grace',
+         'vasp_6.3.2.default_grace',
+         'vasp_6.3.2.default_faster',
+         'vasp_6.3.2.default_faster_VTST']
+        RV_DIR = '/scratch/group/arroyave_lab/guillermo.vazquez/pyiron_dirs/pyiron/resources/vasp/bin'
+        for filename in os.listdir(RV_DIR):
+            f = os.path.join(RV_DIR, filename)
+            # checking if there is an .sh file and deletes it
+            if os.path.isfile(f):
+                if f.endswith('.sh'):
+                    os.remove(f)
+        vasp_chosen = vasp_scripts[self.vasp_chosen]
+        shutil.copy2(RV_DIR+'/'+vasp_chosen,
+                     RV_DIR+'/'+'run_vasp' +
+                     vasp_chosen.split('vasp')[1].split('default')[0]+'sh')
+
 
     def print_cut(self):
         print('#'*50+'\n')
@@ -157,7 +213,7 @@ class pyiron_line:
         if not self.RUNNING:
             # self.update_rooster(self.fun)
             return        
-
+        self._vasp_HPRC_set()
         # run if RUNNING
         proj_pyiron = Project(path=self.project_STR)
         jobs = [0]*self.NUM_cores
@@ -451,8 +507,23 @@ def _relax_blank(job, dic):
         job.server.queue = job.server.list_queues()[0]
 
     if len(job.structure) == 1:
-        job.server.queue = job.server.list_queues()[1]
+        job.server.queue = job.server.list_queues()[0]
         job.input.incar['NCORE'] = 1
+    elif len(job.structure) > 1 and len(job.structure) <= 5:
+        job.server.queue = job.server.list_queues()[1]
+    elif len(job.structure) > 5 and len(job.structure) <= 10:
+        job.server.queue = job.server.list_queues()[2]
+    elif len(job.structure) > 10 and len(job.structure) <= 15:
+        job.server.queue = job.server.list_queues()[3]
+    elif len(job.structure) > 15 and len(job.structure) <= 20:
+        job.server.queue = job.server.list_queues()[4]
+    elif len(job.structure) > 20 and len(job.structure) <= 25:
+        job.server.queue = job.server.list_queues()[5]
+    elif len(job.structure) > 25 and len(job.structure) <= 30:
+        job.server.queue = job.server.list_queues()[6]
+    elif len(job.structure) > 30:
+        job.server.queue = job.server.list_queues()[7]
+
 
     if 'k_mesh' in dic.keys():
         if dic['k_mesh'] is list:
