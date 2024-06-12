@@ -9,4 +9,6 @@ Creates a structure space for a parent lattice space, calculates via DFT and the
 
 ![github_abstract](https://github.com/vzguille/scheduler_src/assets/82835375/8e8c2420-ede3-4c95-a048-bb22ae7d0023)
 
+The model is extrapolated to Canonical Monte-Carlo simulations to calculate the multicomponent SROs at finite temperatures:
+
 ![github_flowchart](https://github.com/vzguille/scheduler_src/assets/82835375/fed6b983-f598-4c36-81bd-c04f476792b4)
