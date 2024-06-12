@@ -1,4 +1,5 @@
 import os
+import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
 import colorsys
@@ -12,6 +13,32 @@ from pymatgen.io import ase as pgase
 
 ase_to_pmg = pgase.AseAtomsAdaptor.get_structure
 pmg_to_ase = pgase.AseAtomsAdaptor.get_atoms
+
+EMPTY_SLURM_FN = "/scratch/user/guillermo.vazquez/SAVE/scheduler_src/reference_files/runEMPTY-mod.slurm"
+EMPTY_TRAIN_FN = "/scratch/user/guillermo.vazquez/SAVE/scheduler_src/reference_files/matglEMPTY.py"
+
+SLURM_DIC = {
+    '--job-name': 'FIRST',
+    '--ntasks': '2',
+    '--nodes': '1',
+    '--ntasks-per-node': '2',
+    '--time': '2:00:00',
+    '--mail-user': 'guillermo.vazquez@tamu.edu',
+    '--mem': '240G',
+    'spec_modules': ['GCC/9.3.0', 'CUDA/11.0.2', 'cuDNN/8.0.4.30-CUDA-11.0.2', 'Anaconda3/2021.05'],
+    'spec_env_cmd': 'source activate /scratch/group/arroyave_lab/guillermo.vazquez/conda_envs/matgg',
+    'job_commands': ['which python','/scratch/group/arroyave_lab/guillermo.vazquez/conda_envs/matgg/bin/python train.py > log'],    
+    'spec_path': [],
+}
+
+PYTHON_DIC = {
+    '-batch_size': 100,
+    '-num_workers': 2,
+    '-energy_weight': 1.0,
+    '-force_weight': 0.5,
+    '-stress_weight': 1.0,
+    '-max_epochs': 2,
+}
 
 
 def obtain_sizes(list_structures):
@@ -540,3 +567,180 @@ def get_static_data_from_all(all_static_structures, all_static_labels,
     return [train_structures, train_labels], [
         val_structures, val_labels], [
         test_structures, test_labels]
+
+
+class MATGL_SLURM_obj:
+    def __init__(self, directory_data, directory_filename):
+        self.directory_filename = directory_filename
+        self.directory_data = directory_data
+        self.parent_directory = os.getcwd()
+        if not os.path.exists(self.directory_data):
+            print('Data directory doesn\'t exists')
+            return
+        if os.path.exists(self.directory_data+'/'
+                          +self.directory_filename+'/'
+                          +'obj.pkl'):
+            try:
+                os.chdir(self.directory_data+'/'+self.directory_filename)
+                self.load_obj()
+                print('object loaded')
+                os.chdir('../..')
+                return
+            except Exception as e:
+                print('error loading object: ', e)
+                os.chdir('../..')
+                return
+        else:
+            # start the object
+            self.STATUS = 'CREATED'
+            os.makedirs(self.directory_data+'/'+self.directory_filename, exist_ok=True)
+            os.chdir(self.directory_data+'/'+self.directory_filename)
+            self.save_obj()
+            os.chdir('../..')
+            print('started and saved the object')
+        
+    
+    def set_params(self, sd=SLURM_DIC, pd=PYTHON_DIC):
+        """function to set the params outside the object 
+        only if they haven't been set before"""
+        if 'slurm_dic' not in self.__dict__:
+            self.slurm_dic = sd
+        if 'python_dic' not in self.__dict__:
+            self.python_dic = pd
+            
+    def save_obj(self, save_file='obj.pkl'):
+        with open(save_file, "wb") as fp:
+            d = dict(self.__dict__)
+            pickle.dump(d, fp)
+
+    def load_obj(self, save_file='obj.pkl'):
+        with open(save_file, "rb") as fp:
+            d = pickle.load(fp)
+        self.__dict__.update(d)
+        
+    def create_SLURM(self):
+        dir_options = self.slurm_dic
+        
+        with open(EMPTY_SLURM_FN, "r") as in_file:
+            buf = in_file.read()
+
+        if len(dir_options['spec_modules']) > 0:
+            buf = buf.replace('MODULE LOAD', 'module load ' +
+                              ' '.join(dir_options['spec_modules']))
+
+        if len(dir_options['spec_path']) > 0:
+            dir_optionssp = []
+            for i in dir_options['spec_path']:
+                dir_optionssp.append('\"'+i+':$PATH'+'\"')
+                buf = buf.replace('PATH LOAD', '\nexport PATH= ' + '\n\
+                    export PATH= '.join(dir_optionssp))
+        else:
+            buf = buf.replace('PATH LOAD', '\n')
+
+        if len(dir_options['spec_env_cmd']) > 0:
+            buf = buf.replace('ENV LOAD', dir_options['spec_env_cmd'])
+        else:
+            buf = buf.replace('ENV LOAD', '')
+
+        # command sen
+        if len(dir_options['job_commands']) > 0:
+            buf = buf.replace(
+                '#---------------------- job ----------------------------#', 
+                '#---------------------- job ----------------------------#\n' +
+                '\n'.join(dir_options['job_commands']))
+        else:
+            pass
+
+        buf = buf.split('\n')
+
+        for i, str_i in enumerate(buf):
+            for key, value in dir_options.items():
+                if '--' in key:
+                    if key in str_i:
+                        buf[i] = '#SBATCH '+key+'='+value
+
+        buf = [i.split('\n') for i in buf]
+        buf = [item for sublist in buf for item in sublist]
+
+        buf = '\n'.join(buf)
+        if dir_options['--job-name'] != '':
+            with open(dir_options['--job-name']+'.slurm', "w") as out_file:
+                out_file.write(buf)
+        # print(buf)
+        return None
+    
+
+
+    def create_TRAIN(self):
+        dir_options = self.python_dic
+        dir_options['+name'] = self.directory_data+'/'+self.directory_filename
+        with open(EMPTY_TRAIN_FN, "r") as in_file:
+            buf = in_file.read()
+    
+        for key, value in dir_options.items():
+            if key.startswith('-'):
+                buf = buf.replace(key[1:]+'!VAR',key[1:]+'='+str(value))
+            if key.startswith('+'):
+                buf = buf.replace(key[1:]+'!VAR',key[1:]+'=\"'+value+'\"')
+        with open('train.py', "w") as out_file:
+            out_file.write(buf)
+        # print(buf)
+        # if mo['--job-name'] != '':
+        #     with open(mo['directory_FN']+'/'+mo['--job-name']+'.py', "w") as out_file:
+        #         out_file.write(buf)
+
+    def update(self, force_update=False):
+        if self.STATUS == 'COMPLETED' and not force_update:
+            print('job already completed and nothing to update')
+            return
+        if self.STATUS == 'CREATED':
+            print('job only created so far')
+            return
+        try:
+            send_str = ['sacct', '-j', str(self.slurm_ID), '-o', 'state']
+            send_out = subprocess.run(send_str, capture_output=True)
+            out_work = send_out.stdout.decode("utf-8").split()
+            self.STATUS = out_work[2]
+            print(self.STATUS)
+        except Exception as e:
+            print('SLURM job STATUS is not ready or not working: ')
+            print(e)
+            
+    def send_job(self):
+        
+        send_str = ['sbatch', self.slurm_dic['--job-name']+'.slurm']
+        try:
+
+            send_out = subprocess.run(send_str, capture_output=True)
+            out_work = send_out.stdout.decode("utf-8").split()
+
+            self.slurm_ID = int(out_work[-1])
+            
+            print('SLURM submitted with and id of: '+str(self.slurm_ID))
+            
+            self.STATUS = 'SENT'
+        except Exception as e: 
+            print('ERROR at sending:\n', e)
+            self.STATUS = 'ERROR'
+            pass
+            
+    def send_train(self):
+        self.update()
+        if self.STATUS == 'COMPLETED':
+            print('train process completed')
+        if self.STATUS == 'ERROR':
+            print('ERROR at sent, please delete and reset object')
+        if self.STATUS == 'CREATED':
+            try:
+                os.chdir(self.directory_data+'/'+self.directory_filename)
+                self.set_params()
+                self.create_SLURM()
+                self.create_TRAIN()
+                self.send_job()
+                self.save_obj()
+                os.chdir('../..')
+            except Exception as e:
+                print('sending job failed')
+                print(e)
+                os.chdir('../..')
+                
