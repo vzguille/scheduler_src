@@ -417,8 +417,8 @@ def validation_static(list_static, calculator, plot_bool=True):
 
 
 def parity_plot_Relax(arr_list, ase_sizes, units, per_atom,
-                      size_marker=10,
-                      alpha=0.4, 
+                      size_marker=15,
+                      alpha=0.5,
                       color_sized=True, 
                       color_unique='red', 
                       edgecolors='white', 
@@ -526,7 +526,7 @@ def validation_relax(list_set, calculator, plot_bool=True):
         res_arr[1][1].append(
             np.abs(np.dot(cell[0], np.cross(cell[1], cell[2])))/ase_sizes[-1])
     
-    units = [r'eV/atom', r'$\AA^3$',]
+    units = [r'eV/atom', r'$\AA^3 /atom$',]
     per_atom = [0, 0,]
     
     for i in range(len(res_arr)):

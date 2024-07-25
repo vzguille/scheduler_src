@@ -61,7 +61,8 @@ model = M3GNet(
 lit_module = PotentialLightningModule(model=model, 
                                       energy_weight!VAR, 
                                       force_weight!VAR, 
-                                      stress_weight!VAR,)
+                                      stress_weight!VAR,
+                                      lr!VAR,)
 
 logger = CSVLogger("logs", 
                    name!VAR

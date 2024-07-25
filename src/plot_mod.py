@@ -39,10 +39,10 @@ import time
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
 
-from pyiron import Project
-from pyiron import ase_to_pyiron
+#from pyiron import Project
+#from pyiron import ase_to_pyiron
 import time
-from pyiron.vasp.outcar import Outcar
+#from pyiron.vasp.outcar import Outcar
 
 
 from pymatgen.io.vasp.inputs import Kpoints
