@@ -8,6 +8,7 @@ import pickle
 
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from matgl.ext.ase import Relaxer
+from itertools import combinations
 
 from pymatgen.io import ase as pgase
 
